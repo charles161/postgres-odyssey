@@ -131,6 +131,47 @@ SELECT
 FROM pg_database
 ORDER BY age(datfrozenxid) DESC;
 
+-- ⚠️ ALSO CHECK MULTIXACT ID AGE (Often hits first!)
+-- MultiXact IDs wrap independently when row-level locking is heavy
+SELECT 
+    datname,
+    age(datfrozenxid) AS xid_age,
+    mxid_age(datminmxid) AS mxid_age,
+    CASE 
+        WHEN mxid_age(datminmxid) > 1500000000 THEN 'MXID EMERGENCY'
+        WHEN mxid_age(datminmxid) > 1000000000 THEN 'MXID CRITICAL'
+        WHEN mxid_age(datminmxid) > 500000000 THEN 'MXID WARNING'
+        ELSE 'MXID OK'
+    END AS mxid_status
+FROM pg_database
+ORDER BY mxid_age(datminmxid) DESC;
+
+-- ⚠️ ALSO CHECK MULTIXACT ID AGE (Often hits first in concurrent environments!)
+-- MultiXact IDs are used when multiple transactions hold locks on same rows
+-- They have their own wraparound limit and can hit BEFORE XID wraparound
+SELECT 
+    datname,
+    age(datfrozenxid) AS xid_age,
+    mxid_age(datminmxid) AS mxid_age,
+    CASE 
+        WHEN mxid_age(datminmxid) > 1500000000 THEN 'MXID EMERGENCY'
+        WHEN mxid_age(datminmxid) > 1000000000 THEN 'MXID CRITICAL'
+        WHEN mxid_age(datminmxid) > 500000000 THEN 'MXID WARNING'
+        ELSE 'MXID OK'
+    END AS mxid_status
+FROM pg_database
+ORDER BY mxid_age(datminmxid) DESC;
+
+-- Monitor for MultiXact wraparound at table level too
+SELECT 
+    schemaname,
+    relname,
+    age(relfrozenxid) AS xid_age,
+    mxid_age(relminmxid) AS mxid_age
+FROM pg_stat_user_tables
+ORDER BY GREATEST(age(relfrozenxid), mxid_age(relminmxid)) DESC
+LIMIT 20;
+
 -- FIND OLDEST TABLES (These are blocking overall freeze)
 SELECT 
     schemaname,

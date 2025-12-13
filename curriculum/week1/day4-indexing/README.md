@@ -255,10 +255,34 @@ CREATE INDEX idx_products_sku_hash ON products USING hash(sku);
 │   ✗ Sorting: ORDER BY sku            No help!             │
 │   ✗ Prefix: WHERE sku LIKE 'SKU%'    No help!             │
 │                                                              │
-│   When to use:                                               │
-│   • High-cardinality equality lookups                       │
-│   • UUID or long string exact matches                       │
-│   • Rarely useful - B-tree is usually as fast               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### When Hash Indexes ARE Useful (UUID Primary Keys!)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              HASH vs B-TREE FOR UUIDs                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   Supabase uses UUID primary keys by default.               │
+│                                                              │
+│   For 1 million rows with UUID PKs:                         │
+│   • B-tree index: ~70MB                                     │
+│   • Hash index: ~35MB  (50% smaller!)                       │
+│                                                              │
+│   Why it matters:                                            │
+│   In memory-constrained cloud tiers, 50% RAM savings        │
+│   on your primary key index can be the difference           │
+│   between fitting in shared_buffers or thrashing disk.      │
+│                                                              │
+│   USE HASH FOR UUIDS WHEN:                                  │
+│   ✓ Only doing exact equality lookups (WHERE id = uuid)    │
+│   ✓ Memory is constrained                                   │
+│   ✓ Never need ORDER BY or range queries on the column     │
+│                                                              │
+│   -- Create hash index for UUID PK                          │
+│   CREATE INDEX idx_users_id_hash ON users USING hash(id);   │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -620,6 +644,41 @@ FROM pg_stat_user_indexes
 WHERE idx_scan = 0
   AND indexrelid::regclass::text NOT LIKE '%_pkey'  -- Skip primary keys
 ORDER BY pg_relation_size(indexrelid) DESC;
+```
+
+---
+
+## Bonus: pg_trgm for Fuzzy Search
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│              PG_TRGM - TRIGRAM INDEXES                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   Problem: B-tree can't help with LIKE '%search%' (middle wildcard)    │
+│   Solution: Trigram indexes!                                            │
+│                                                                          │
+│   "hello" → trigrams: "  h", " he", "hel", "ell", "llo", "lo "         │
+│                                                                          │
+│   CREATE EXTENSION pg_trgm;                                             │
+│                                                                          │
+│   -- GIN trigram index for LIKE/ILIKE                                   │
+│   CREATE INDEX idx_products_name_trgm                                   │
+│   ON products USING gin(name gin_trgm_ops);                             │
+│                                                                          │
+│   -- Now these are FAST:                                                │
+│   SELECT * FROM products WHERE name LIKE '%phone%';                     │
+│   SELECT * FROM products WHERE name ILIKE '%PHONE%';                    │
+│                                                                          │
+│   -- Similarity search (fuzzy matching!)                                │
+│   SELECT name, similarity(name, 'iphon')                                │
+│   FROM products                                                          │
+│   WHERE name % 'iphon'  -- % is similarity operator                    │
+│   ORDER BY similarity(name, 'iphon') DESC;                              │
+│                                                                          │
+│   ESSENTIAL for modern SaaS: Search boxes, autocomplete, typo handling │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---

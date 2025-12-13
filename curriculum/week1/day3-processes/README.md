@@ -659,6 +659,24 @@ SELECT
     END AS status
 FROM pg_database
 ORDER BY age(datfrozenxid) DESC;
+
+-- ⚠️ ALSO CHECK MULTIXACT ID AGE (Often hits first!)
+-- MultiXact IDs wrap independently when row-level locking is heavy
+SELECT 
+    datname,
+    age(datfrozenxid) AS xid_age,
+    mxid_age(datminmxid) AS mxid_age,
+    CASE 
+        WHEN mxid_age(datminmxid) > 1000000000 THEN 'CRITICAL'
+        WHEN mxid_age(datminmxid) > 500000000 THEN 'WARNING'
+        ELSE 'OK'
+    END AS mxid_status
+FROM pg_database
+ORDER BY mxid_age(datminmxid) DESC;
+
+-- Monitor sort spills (queries using too little work_mem)
+-- Add to postgresql.conf:
+-- log_temp_files = '10MB'  -- Log when temp files exceed 10MB
 ```
 
 ---

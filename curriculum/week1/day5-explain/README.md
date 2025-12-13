@@ -23,6 +23,87 @@
 
 ---
 
+## 0. pg_stat_statements - Your Performance Debugging Superpower
+
+**Before we dive into EXPLAIN, you need to know the most important extension for performance debugging:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    PG_STAT_STATEMENTS                                    │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   pg_stat_activity tells you what's happening NOW.                      │
+│   pg_stat_statements tells you what happened OVER TIME.                 │
+│                                                                          │
+│   • Aggregates query statistics across all executions                   │
+│   • Tracks: call count, total time, mean time, rows returned           │
+│   • Normalizes queries (parameters replaced with $1, $2, etc.)         │
+│   • Essential for finding the REAL bottlenecks                          │
+│                                                                          │
+│   Without this, you're flying blind.                                    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+```sql
+-- Enable the extension
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+-- Top 10 queries by TOTAL time (biggest overall impact)
+SELECT 
+    LEFT(query, 80) AS query,
+    calls,
+    ROUND(total_exec_time::numeric, 2) AS total_ms,
+    ROUND(mean_exec_time::numeric, 2) AS mean_ms,
+    ROUND((100 * total_exec_time / SUM(total_exec_time) OVER())::numeric, 2) AS pct
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 10;
+
+-- Top 10 queries by MEAN time (slowest individual queries)
+SELECT 
+    LEFT(query, 80) AS query,
+    calls,
+    ROUND(mean_exec_time::numeric, 2) AS mean_ms,
+    rows
+FROM pg_stat_statements
+WHERE calls > 10  -- Ignore one-off queries
+ORDER BY mean_exec_time DESC
+LIMIT 10;
+
+-- Top 10 by call count (most frequent - small improvements = big wins)
+SELECT 
+    LEFT(query, 80) AS query,
+    calls,
+    ROUND(mean_exec_time::numeric, 2) AS mean_ms,
+    ROUND(total_exec_time::numeric, 2) AS total_ms
+FROM pg_stat_statements
+ORDER BY calls DESC
+LIMIT 10;
+
+-- Reset stats after optimization (to measure improvement)
+SELECT pg_stat_statements_reset();
+```
+
+**The Optimization Formula:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│   total_time = calls × mean_time                                        │
+│                                                                          │
+│   To reduce total_time:                                                  │
+│   1. Reduce mean_time (optimize the query with EXPLAIN ANALYZE)        │
+│   2. Reduce calls (batch queries, cache results, fix N+1)              │
+│                                                                          │
+│   A query called 1 million times that takes 1ms each =                 │
+│   1,000,000ms = 16.6 minutes of database time!                         │
+│                                                                          │
+│   Reducing it to 0.5ms saves 8.3 minutes of CPU per day.               │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## 1. EXPLAIN Basics
 
 ### The Three Flavors

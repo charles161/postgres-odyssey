@@ -191,10 +191,72 @@
 │   DISASTER: Two primaries accepting writes!                             │
 │   Data will diverge and be very hard to reconcile                       │
 │                                                                          │
-│   Prevention:                                                            │
-│   • Consensus quorum (need majority to elect leader)                    │
-│   • Fencing (STONITH - Shoot The Other Node In The Head)                │
-│   • Synchronous replication before promotion                            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### STONITH - Fencing (The Nuclear Option)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│         STONITH - SHOOT THE OTHER NODE IN THE HEAD                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   Problem: You promote replica, but old primary is still running!       │
+│            Maybe it's just slow, maybe network partition.               │
+│            You can't KNOW if it's still accepting writes.               │
+│                                                                          │
+│   Solution: KILL IT. With certainty.                                    │
+│                                                                          │
+│   FENCING METHODS:                                                      │
+│                                                                          │
+│   1. POWER FENCING (Most reliable)                                      │
+│      → Send command to IPMI/iLO/DRAC to hard power-off                 │
+│      → Cloud: AWS ec2 terminate-instances, GCP compute stop            │
+│      → Physical: PDU (Power Distribution Unit) cutoff                   │
+│                                                                          │
+│   2. NETWORK FENCING                                                    │
+│      → Block the old primary at network/firewall level                 │
+│      → Less reliable (node might still corrupt local data)              │
+│                                                                          │
+│   3. STORAGE FENCING                                                    │
+│      → Revoke old primary's access to shared storage                   │
+│      → Common with SAN setups                                           │
+│                                                                          │
+│   ⚠️ WITHOUT FENCING, YOU CANNOT GUARANTEE DATA INTEGRITY              │
+│                                                                          │
+│   Patroni supports fencing callbacks:                                   │
+│   on_stop: /path/to/fence-script.sh                                    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Prevention Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│            SPLIT-BRAIN PREVENTION                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   LAYER 1: CONSENSUS (Etcd/Consul/ZooKeeper)                           │
+│   • Need majority quorum to hold leader lock                            │
+│   • 3 nodes = need 2 to agree                                           │
+│   • 5 nodes = need 3 to agree                                           │
+│   • If partitioned from majority, cannot become leader                  │
+│                                                                          │
+│   LAYER 2: FENCING (STONITH)                                            │
+│   • Before promoting new leader, KILL old leader                        │
+│   • Use cloud APIs to terminate instance                                │
+│   • Use IPMI/iLO for bare metal                                         │
+│                                                                          │
+│   LAYER 3: SYNCHRONOUS REPLICATION                                      │
+│   • Old primary can't commit if sync replica unreachable               │
+│   • Trades availability for consistency                                 │
+│                                                                          │
+│   LAYER 4: APPLICATION AWARENESS                                        │
+│   • App checks "SELECT pg_is_in_recovery()" before writes              │
+│   • Rejects writes to replicas                                          │
+│                                                                          │
+│   A Head of Postgres uses ALL layers. Manual failover is negligence.   │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

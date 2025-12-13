@@ -281,7 +281,35 @@ LIMIT 20;
 |------|-------------|----------|
 | Session | Connection held for session duration | Legacy apps with session state |
 | Transaction | Connection returned after each transaction | Most applications (recommended) |
-| Statement | Connection returned after each statement | Simple read-only queries |
+| Statement | ⚠️ **DANGEROUS** - returned after each statement | Almost never use! |
+
+### ⚠️ Statement Mode - THE HIDDEN PERFORMANCE KILLER
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│       STATEMENT MODE - ALMOST NEVER USE THIS                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   Statement mode returns connection after EVERY SINGLE QUERY.           │
+│                                                                          │
+│   WHAT BREAKS:                                                          │
+│   • PREPARED STATEMENTS - Discarded immediately!                        │
+│   • SET LOCAL - Gone after one query!                                   │
+│   • TRANSACTIONS - Can't even do BEGIN...COMMIT!                       │
+│   • Everything that needs 2+ statements                                 │
+│                                                                          │
+│   THE CPU SPIKE DISASTER:                                               │
+│   Your ORM (Django, Rails, Prisma, etc.) by default:                   │
+│   → Tries to use prepared statements                                    │
+│   → PgBouncer Statement mode discards them                              │
+│   → Every query re-parses and re-plans                                  │
+│   → CPU at 100%, query latency through the roof                         │
+│                                                                          │
+│   ONLY use statement mode for trivial single-SELECT monitoring apps.   │
+│   For everything else: Use TRANSACTION mode.                            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ### ⚠️ Transaction Mode Gotchas (Critical Knowledge!)
 

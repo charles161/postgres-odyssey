@@ -421,6 +421,59 @@ Dead tuples accumulate → VACUUM cleans them up:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### The Visibility Map (VM) - VACUUM's Performance Secret
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    VISIBILITY MAP                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   VACUUM's most important job isn't freeing space - it's updating       │
+│   the Visibility Map to enable INDEX-ONLY SCANS!                        │
+│                                                                          │
+│   The VM is a bitmap: one bit per heap page                             │
+│   • Bit = 1: "All tuples on this page are visible to all transactions" │
+│   • Bit = 0: "Page has some dead tuples or recent changes"             │
+│                                                                          │
+│   WHY IT MATTERS:                                                       │
+│   ┌─────────────────────────────────────────────────────────────────┐   │
+│   │  Query: SELECT name FROM products WHERE id = 42;                │   │
+│   │  Index has: id → name → heap pointer                            │   │
+│   │                                                                  │   │
+│   │  WITHOUT VM: Index → Read heap page to check visibility        │   │
+│   │  WITH VM:    Index → VM says "all visible" → Skip heap!        │   │
+│   │                                                                  │   │
+│   │  Index-Only Scan = FAST (no heap access!)                       │   │
+│   └─────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│   If autovacuum falls behind, VM gets stale, Index-Only Scans          │
+│   become Index Scans (heap access), read performance degrades!         │
+│                                                                          │
+│   For high-throughput READ workloads:                                   │
+│   • Lower autovacuum_vacuum_scale_factor (e.g., 0.02 = 2%)            │
+│   • Keep VM fresh for Index-Only Scans                                 │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+```sql
+-- Check if Index-Only Scans are hitting heap
+-- "Heap Fetches" should be close to 0 for true Index-Only performance
+EXPLAIN (ANALYZE, BUFFERS) 
+SELECT name FROM products WHERE id = 42;
+
+-- Check VM status per table
+SELECT 
+    relname,
+    pg_size_pretty(pg_relation_size(c.oid)) AS table_size,
+    pg_size_pretty(pg_relation_size(c.reltoastrelid)) AS toast_size,
+    n_dead_tup,
+    last_autovacuum
+FROM pg_class c
+JOIN pg_stat_user_tables s ON c.relname = s.relname
+WHERE s.schemaname = 'public';
+```
+
 ### Autovacuum
 
 Postgres runs VACUUM automatically:
@@ -440,6 +493,12 @@ SELECT
     last_autovacuum
 FROM pg_stat_user_tables
 ORDER BY n_dead_tup DESC;
+
+-- For read-heavy tables, tune autovacuum aggressively:
+-- ALTER TABLE hot_reads SET (
+--     autovacuum_vacuum_scale_factor = 0.02,  -- 2% instead of 20%
+--     autovacuum_vacuum_threshold = 50
+-- );
 ```
 
 ---

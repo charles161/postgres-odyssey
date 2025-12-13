@@ -16,8 +16,9 @@
 │  2. Vertical Scaling                  (15 min)              │
 │  3. Read Scaling with Replicas        (20 min)              │
 │  4. Connection Pooling at Scale       (20 min)              │
-│  5. Sharding Strategies               (30 min)              │
-│  6. Supabase's Approach               (20 min)              │
+│  5. Partitioning (BEFORE Sharding!)   (25 min)              │
+│  6. Sharding Strategies               (25 min)              │
+│  7. Supabase's Approach               (15 min)              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -306,7 +307,127 @@ Supabase built their own pooler for multi-tenant scale:
 
 ---
 
-## 5. Sharding Strategies
+## 5. Partitioning: Scale BEFORE You Shard
+
+### ⚠️ CRITICAL: You Should Partition Before You Shard
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│       PARTITIONING - THE STEP MOST TEAMS SKIP                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   Many teams jump from "table is slow" to "let's shard!"               │
+│   That's like hiring 10 devs before you've tried better tools.         │
+│                                                                          │
+│   PARTITIONING = Splitting one table into smaller physical tables      │
+│   Still one database, one server, but:                                  │
+│   • Smaller indexes (fit in memory!)                                   │
+│   • Partition pruning (skip irrelevant data)                           │
+│   • Parallel operations across partitions                              │
+│   • Easy archival (DROP old partitions instantly)                      │
+│                                                                          │
+│   Partitioning can give you 10-100x improvement on large tables        │
+│   with FAR less complexity than sharding.                              │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Partitioning Strategies
+
+```sql
+-- TIME-BASED PARTITIONING (Most common - events, logs, orders)
+CREATE TABLE events (
+    id BIGSERIAL,
+    event_type TEXT,
+    payload JSONB,
+    created_at TIMESTAMPTZ NOT NULL
+) PARTITION BY RANGE (created_at);
+
+-- Create monthly partitions
+CREATE TABLE events_2024_01 PARTITION OF events
+    FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+CREATE TABLE events_2024_02 PARTITION OF events
+    FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
+CREATE TABLE events_2024_03 PARTITION OF events
+    FOR VALUES FROM ('2024-03-01') TO ('2024-04-01');
+
+-- Query only touches relevant partition!
+SELECT * FROM events WHERE created_at >= '2024-02-15';
+-- Postgres automatically skips events_2024_01, events_2024_03
+
+
+-- TENANT-BASED PARTITIONING (Multi-tenant SaaS)
+CREATE TABLE tenant_data (
+    id BIGSERIAL,
+    tenant_id UUID NOT NULL,
+    data JSONB
+) PARTITION BY HASH (tenant_id);
+
+-- Create N partitions (commonly 8, 16, or 32)
+CREATE TABLE tenant_data_0 PARTITION OF tenant_data
+    FOR VALUES WITH (MODULUS 8, REMAINDER 0);
+CREATE TABLE tenant_data_1 PARTITION OF tenant_data
+    FOR VALUES WITH (MODULUS 8, REMAINDER 1);
+-- ... etc
+```
+
+### pg_partman for Automatic Management
+
+```sql
+-- Install pg_partman
+CREATE EXTENSION pg_partman;
+
+-- Auto-create partitions for time-series data
+SELECT partman.create_parent(
+    p_parent_table := 'public.events',
+    p_control := 'created_at',
+    p_type := 'native',
+    p_interval := 'monthly',
+    p_premake := 3  -- Create 3 months ahead
+);
+
+-- Auto-maintenance (run via pg_cron or external scheduler)
+SELECT partman.run_maintenance();
+
+-- Retention: automatically drop partitions older than 1 year
+UPDATE partman.part_config
+SET retention = '1 year', retention_keep_table = false
+WHERE parent_table = 'public.events';
+```
+
+### Partition Benefits
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│           PARTITIONING BENEFITS                                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   1. PARTITION PRUNING                                                  │
+│      Query for January only reads January partition                     │
+│      1TB table → Query scans 80GB (monthly partition)                  │
+│                                                                          │
+│   2. SMALLER INDEXES                                                    │
+│      Each partition has its own indexes                                │
+│      Index on 80GB is 12x smaller than index on 1TB                   │
+│      More likely to fit in memory!                                     │
+│                                                                          │
+│   3. INSTANT DATA DELETION                                              │
+│      DROP TABLE events_2023_01;  -- Instant!                           │
+│      vs DELETE FROM events WHERE created_at < '2023-02-01';  -- Hours  │
+│                                                                          │
+│   4. PARALLEL VACUUM                                                    │
+│      Autovacuum can work on different partitions concurrently          │
+│      Less blocking, faster maintenance                                  │
+│                                                                          │
+│   5. ONLINE MAINTENANCE                                                 │
+│      REINDEX one partition without blocking others                      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. Sharding Strategies
 
 ### When You Need Sharding
 
@@ -321,13 +442,15 @@ Supabase built their own pooler for multi-tenant scale:
 │   • Multi-region write locality needed                                  │
 │   • Regulatory data residency requirements                              │
 │                                                                          │
-│   NOT yet ready if you haven't:                                         │
+│   ⚠️ NOT YET READY IF YOU HAVEN'T:                                     │
 │   • Optimized queries and indexes                                       │
 │   • Set up read replicas                                                │
 │   • Implemented proper caching                                          │
 │   • Used vertical scaling headroom                                      │
+│   • ⭐ PARTITIONED YOUR LARGE TABLES (see above!)                       │
 │                                                                          │
-│   Sharding adds significant complexity!                                 │
+│   Sharding adds SIGNIFICANT complexity!                                 │
+│   Partitioning is free. Try it first.                                  │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
