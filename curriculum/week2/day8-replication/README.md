@@ -38,17 +38,47 @@
 │     Primary handles writes                                              │
 │     Replicas handle reads (spread the load)                             │
 │                                                                          │
-│  3. DISASTER RECOVERY                                                    │
-│     Replica in different region/datacenter                              │
-│     Protection against site-wide failures                               │
-│                                                                          │
-│  4. ANALYTICS                                                            │
+│  3. ANALYTICS                                                            │
 │     Run heavy reports on replica                                        │
 │     Don't impact production writes                                      │
 │                                                                          │
-│  5. ZERO-DOWNTIME MIGRATIONS                                            │
+│  4. ZERO-DOWNTIME MIGRATIONS                                            │
 │     Set up replication to new version                                   │
 │     Switch over when ready                                              │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### ⚠️ CRITICAL: Replication is NOT Disaster Recovery!
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│           REPLICATION ≠ DISASTER RECOVERY                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   Scenario: Developer runs "DELETE FROM users;" (no WHERE clause)      │
+│                                                                          │
+│   WITH STREAMING REPLICATION:                                           │
+│   ┌─────────────────────────────────────────────────────────────────┐   │
+│   │  Primary: DELETE → 0 users remain                               │   │
+│   │           ↓ WAL streams to all replicas                          │   │
+│   │  Replica1: DELETE applied → 0 users remain                      │   │
+│   │  Replica2: DELETE applied → 0 users remain                      │   │
+│   │  ReplicaN: DELETE applied → 0 users remain                      │   │
+│   │                                                                  │   │
+│   │  RESULT: All replicas have 0 users.                             │   │
+│   │          DATA IS GONE EVERYWHERE.                               │   │
+│   └─────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│   Replication protects against: HARDWARE FAILURE                        │
+│   Replication does NOT protect against: HUMAN ERROR, CORRUPTION        │
+│                                                                          │
+│   FOR DISASTER RECOVERY, YOU NEED:                                      │
+│   • Point-in-Time Recovery (PITR) via WAL archives                     │
+│   • Regular base backups (pg_basebackup, pgBackRest)                   │
+│   • The ability to restore to "10:14:59 AM" - before the mistake       │
+│                                                                          │
+│   A Head of Postgres knows: You need BOTH replication AND PITR.        │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

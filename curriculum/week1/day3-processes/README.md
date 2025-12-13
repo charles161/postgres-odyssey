@@ -622,6 +622,86 @@ WHERE name IN ('shared_buffers', 'work_mem', 'maintenance_work_mem',
 
 ---
 
+## ⚠️ Critical Addendum: Transaction ID Wraparound
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│           THE SILENT KILLER: XID WRAPAROUND                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   Postgres Transaction IDs (XIDs) are 32-bit = ~4.2 billion             │
+│   But only ~2.1 billion can be "in the past" at any moment.             │
+│                                                                          │
+│   If XIDs aren't "frozen" before they get too old,                      │
+│   rows DISAPPEAR (appear "in the future").                              │
+│                                                                          │
+│   Worse: When within 10M XIDs of limit → DATABASE STOPS WRITES!         │
+│                                                                          │
+│   AUTOVACUUM's Hidden Job:                                              │
+│   • Freeze old rows (set special bit = "visible forever")              │
+│   • Track oldest unfrozen XID per table (relfrozenxid)                 │
+│   • Track oldest across database (datfrozenxid)                        │
+│                                                                          │
+│   Monitor This! Alert if age(datfrozenxid) > 500,000,000               │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+```sql
+-- CHECK DATABASE XID AGE (Run this regularly!)
+SELECT 
+    datname,
+    age(datfrozenxid) AS xid_age,
+    CASE 
+        WHEN age(datfrozenxid) > 1000000000 THEN 'CRITICAL'
+        WHEN age(datfrozenxid) > 500000000 THEN 'WARNING'
+        ELSE 'OK'
+    END AS status
+FROM pg_database
+ORDER BY age(datfrozenxid) DESC;
+```
+
+---
+
+## 🐧 Linux Kernel Tuning (The Foundation)
+
+A Head of Postgres knows: the database config is useless if the OS is fighting it.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│               ESSENTIAL LINUX SETTINGS                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   1. HUGE PAGES                                                         │
+│      Problem: Postgres uses lots of RAM. Standard 4KB pages →          │
+│               CPU's TLB (Translation Lookaside Buffer) thrashes.       │
+│      Solution: Enable Huge Pages (2MB pages)                           │
+│                                                                          │
+│      # Calculate huge pages needed:                                     │
+│      # shared_buffers / 2MB + some overhead                            │
+│      echo "vm.nr_hugepages = 4096" >> /etc/sysctl.conf                 │
+│                                                                          │
+│      # In postgresql.conf:                                              │
+│      huge_pages = try  # or 'on' to require                            │
+│                                                                          │
+│   2. SWAPPINESS                                                         │
+│      Problem: Default 60 → OS will swap shared_buffers to disk!       │
+│      Solution: Set to 1 (not 0, which disables swap entirely)         │
+│                                                                          │
+│      echo "vm.swappiness = 1" >> /etc/sysctl.conf                      │
+│                                                                          │
+│   3. OVERCOMMIT MEMORY                                                  │
+│      Problem: If memory runs out, OOM Killer kills Postgres!          │
+│      Solution: Proper memory accounting                                │
+│                                                                          │
+│      echo "vm.overcommit_memory = 2" >> /etc/sysctl.conf               │
+│      echo "vm.overcommit_ratio = 80" >> /etc/sysctl.conf               │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## ⏭️ Tomorrow: Day 4
 
 We'll dive deep into **indexing** - B-trees, GIN, GiST, BRIN - and learn how to choose the right index for your workload. This is critical for query optimization!

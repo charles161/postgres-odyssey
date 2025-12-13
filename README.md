@@ -24,6 +24,7 @@
 | 12 | Change Data Capture | ⬜ | 2h |
 | 13 | Supabase Platform Deep Dive | ⬜ | 2h |
 | 14 | Mock Interview & Synthesis | ⬜ | 2h |
+| **15** | **The Graveyard** ☠️ | ⬜ | 2h+ |
 
 **Legend:** ⬜ Not Started | 🔄 In Progress | ✅ Complete
 
@@ -102,6 +103,35 @@ As a frontend engineer, you'll find familiar concepts:
 4. **OrioleDB** - Their next-gen storage engine investment
 5. **Multi-tenant Architecture** - Database per tenant model
 6. **System Design** - Scale a database platform
+
+---
+
+## ☠️ Day 15: The Graveyard (Bonus)
+
+Advanced failure modes that separate operators from leaders:
+
+| Topic | Why It Matters |
+|-------|---------------|
+| **XID Wraparound** | Silent killer that stops writes when XIDs exhaust |
+| **Data Corruption** | Detection with checksums, recovery with amcheck |
+| **Bloat** | When VACUUM isn't enough, use pg_repack |
+| **PITR** | Replication ≠ Disaster Recovery |
+| **Infrastructure Economics** | Cost optimization at scale |
+| **Post-Mortems** | Blameless culture, systemic fixes |
+
+---
+
+## ⚠️ Critical Additions Based on Expert Review
+
+The curriculum now includes corrections from a senior database engineer:
+
+1. **Transaction ID Wraparound** (Day 3) - The silent killer that stops your database
+2. **Connection Pooling Gotchas** (Day 7) - Transaction vs Session mode traps
+3. **Linux Kernel Tuning** (Day 3) - Huge pages, swappiness, overcommit
+4. **HOT Updates & fillfactor** (Day 4) - The write cost of indexes
+5. **PITR vs Replication** (Day 8) - They solve different problems
+6. **OrioleDB Skepticism** (Day 13) - High risk / high reward framing
+7. **RLS Performance** (Day 13) - Index your policy columns!
 
 ---
 

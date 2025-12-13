@@ -535,6 +535,77 @@ WITH (pages_per_range = 32);  -- Smaller = more precise, larger index
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### HOT Updates (Heap-Only Tuples) - The Write Cost Secret
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│              HOT UPDATES - CRITICAL FOR WRITE PERFORMANCE                │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   THE PROBLEM:                                                          │
+│   When you UPDATE a row, Postgres creates a NEW tuple.                  │
+│   If the new tuple goes to a DIFFERENT page, ALL indexes must update   │
+│   to point to the new location. This is expensive!                     │
+│                                                                          │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │  Page (100% full)                                               │   │
+│   │  ┌────────────────────────────────────────────────────────┐    │   │
+│   │  │ row1 │ row2 │ row3 │ row4 │ row5 │ ... │ NO ROOM │     │    │   │
+│   │  └────────────────────────────────────────────────────────┘    │   │
+│   │                                                                 │   │
+│   │  UPDATE row3 → Must go to NEW page → ALL indexes update       │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│   THE SOLUTION: fillfactor                                              │
+│   Leave room on pages for updates!                                      │
+│                                                                          │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │  Page (90% full, fillfactor=90)                                │   │
+│   │  ┌────────────────────────────────────────────────────────┐    │   │
+│   │  │ row1 │ row2 │ row3 │ row4 │ row5 │   ROOM FOR UPDATES  │    │   │
+│   │  └────────────────────────────────────────────────────────┘    │   │
+│   │                                                                 │   │
+│   │  UPDATE row3 → New version fits on SAME page → HOT update!    │   │
+│   │  No index updates needed! Much faster.                         │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│   RULES FOR HOT:                                                        │
+│   1. New tuple fits on same page                                        │
+│   2. No indexed columns were modified                                   │
+│   3. Page has room (fillfactor)                                        │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+```sql
+-- For frequently updated tables, use fillfactor
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY,
+    user_id INT,
+    data JSONB,
+    updated_at TIMESTAMP
+) WITH (fillfactor = 70);  -- Leave 30% room for updates
+
+-- For mostly-append tables, use default (100)
+CREATE TABLE events (
+    id BIGSERIAL PRIMARY KEY,
+    payload JSONB
+);  -- Default fillfactor = 100 (pack tight)
+
+-- Check HOT update ratio
+SELECT 
+    schemaname,
+    relname,
+    n_tup_upd,
+    n_tup_hot_upd,
+    ROUND(100.0 * n_tup_hot_upd / NULLIF(n_tup_upd, 0), 2) AS hot_ratio
+FROM pg_stat_user_tables
+WHERE n_tup_upd > 0
+ORDER BY n_tup_upd DESC;
+
+-- Goal: hot_ratio > 90% for update-heavy tables
+```
+
 ### Find Unused Indexes
 
 ```sql

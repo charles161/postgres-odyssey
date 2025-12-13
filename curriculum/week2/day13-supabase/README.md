@@ -296,6 +296,44 @@ VALUES (pgsodium.crypto_secretbox(
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+### ⚠️ RLS Performance Considerations
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│           RLS PERFORMANCE: THE HIDDEN COST                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   RLS is magical for security, but it has a performance cost.          │
+│                                                                          │
+│   Every query with RLS enabled:                                         │
+│   SELECT * FROM orders;                                                 │
+│                                                                          │
+│   Becomes (internally):                                                  │
+│   SELECT * FROM orders WHERE <your_rls_policy_check>;                   │
+│                                                                          │
+│   If your policy does:                                                   │
+│   USING (user_id = auth.uid())                                          │
+│                                                                          │
+│   And user_id is NOT INDEXED → Every permission check is a Seq Scan!  │
+│                                                                          │
+│   CRITICAL RULE:                                                        │
+│   ┌─────────────────────────────────────────────────────────────────┐   │
+│   │  Always index the columns used in your RLS policies!            │   │
+│   │                                                                  │   │
+│   │  CREATE INDEX idx_orders_user_id ON orders(user_id);            │   │
+│   │  CREATE INDEX idx_orders_tenant_id ON orders(tenant_id);        │   │
+│   └─────────────────────────────────────────────────────────────────┘   │
+│                                                                          │
+│   DEBUGGING RLS PERFORMANCE:                                            │
+│   SET row_security = off;  -- Temporarily (as superuser)               │
+│   Run query with EXPLAIN ANALYZE                                        │
+│   SET row_security = on;                                                │
+│   Run query with EXPLAIN ANALYZE again                                  │
+│   Compare the difference - that's your RLS overhead                     │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 ### RLS Policies
 
 ```sql
@@ -446,13 +484,47 @@ EXECUTE FUNCTION notify_order_webhook();
 │   • Requires regular VACUUM                                             │
 │   • 32-byte tuple header overhead                                       │
 │                                                                          │
-│   OrioleDB:                                                              │
+│   OrioleDB Claims:                                                       │
 │   • Row-level WAL (more efficient)                                      │
 │   • Undo log instead of in-place MVCC                                   │
 │   • No more table bloat!                                                │
 │   • No more VACUUM for bloat!                                           │
 │   • Index-organized tables option                                       │
 │   • Copy-on-write checkpoints                                           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### ⚠️ Head-Level Skepticism: OrioleDB Risks
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│           ORIOLEDB: A BALANCED VIEW                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   THE SALES PITCH:                                                      │
+│   "It removes VACUUM! No more bloat! 2-5x write performance!"          │
+│                                                                          │
+│   THE REALITY (What a Head of Postgres should consider):               │
+│                                                                          │
+│   RISKS:                                                                │
+│   ✗ New, less-tested codebase (vs 30+ years of Postgres heap)         │
+│   ✗ Different failure modes - we don't know them all yet              │
+│   ✗ Tooling ecosystem assumes heap storage (backup, debug, etc.)      │
+│   ✗ Extension compatibility unknown                                    │
+│   ✗ Production experience limited                                      │
+│   ✗ "No VACUUM" trades one complexity for another (undo log mgmt)     │
+│                                                                          │
+│   BENEFITS:                                                             │
+│   ✓ Could solve write amplification for update-heavy workloads        │
+│   ✓ Could eliminate bloat management entirely                          │
+│   ✓ Could reduce operational overhead long-term                        │
+│   ✓ Active development with Supabase investment                       │
+│                                                                          │
+│   HEAD OF POSTGRES FRAMING:                                             │
+│   "High risk / high reward. Start with non-critical workloads.        │
+│    Build internal expertise. Have rollback plan. Don't migrate         │
+│    production until we have 6+ months of internal experience."         │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```

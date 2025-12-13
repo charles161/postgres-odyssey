@@ -283,12 +283,61 @@ LIMIT 20;
 | Transaction | Connection returned after each transaction | Most applications (recommended) |
 | Statement | Connection returned after each statement | Simple read-only queries |
 
+### ⚠️ Transaction Mode Gotchas (Critical Knowledge!)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│       TRANSACTION MODE BREAKS THESE FEATURES                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   In Transaction Mode, each transaction may get a DIFFERENT backend.   │
+│   Session-level state is LOST between transactions!                    │
+│                                                                          │
+│   BROKEN FEATURES:                                                      │
+│                                                                          │
+│   1. PREPARED STATEMENTS                                                │
+│      Client: PREPARE stmt AS SELECT ...;                               │
+│      Client: EXECUTE stmt(1);  ← Works                                  │
+│      -- connection returned to pool --                                  │
+│      Client: EXECUTE stmt(2);  ← ERROR: stmt doesn't exist!            │
+│                                                                          │
+│   2. SET LOCAL / SET SESSION                                            │
+│      SET LOCAL work_mem = '256MB';                                     │
+│      -- next query might use different connection! --                  │
+│                                                                          │
+│   3. ADVISORY LOCKS                                                     │
+│      SELECT pg_advisory_lock(123);                                     │
+│      -- You might lose the lock when connection switches! --           │
+│                                                                          │
+│   4. TEMPORARY TABLES                                                   │
+│      CREATE TEMP TABLE foo (...);                                      │
+│      -- Gone when connection changes! --                               │
+│                                                                          │
+│   5. LISTEN/NOTIFY                                                      │
+│      Requires persistent connection to receive notifications           │
+│                                                                          │
+│   REAL-WORLD CPU SPIKE SCENARIO:                                       │
+│   "Why is our CPU at 100%?"                                            │
+│   "ORM tries to use prepared statements..."                            │
+│   "PgBouncer transaction mode discards them..."                        │
+│   "Every query re-parses! No plan caching!"                            │
+│                                                                          │
+│   SOLUTIONS:                                                            │
+│   • Disable prepared statements in ORM config                          │
+│   • Use session mode for apps that need these features                │
+│   • Supavisor: Named prepared statements survive in session mode      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
 ### Supabase Approach
 
 Supabase uses **Supavisor** (their Elixir-based pooler):
 - Multi-tenant pooling
 - Named pools per database
 - Built-in for all Supabase projects
+- **Transaction mode by default** (be aware of the gotchas above!)
+- Session mode available for features requiring persistent connections
 
 ---
 
