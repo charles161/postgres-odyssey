@@ -22,7 +22,6 @@ services:
     volumes:
       - postgres-primary-data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
-      - ./postgres-primary.conf:/etc/postgresql/postgresql.conf
     command: >
       postgres
       -c wal_level=logical
