@@ -623,3 +623,235 @@ Open `exercises.sql` and try:
 
 We'll explore the **process architecture** - what happens when you connect to Postgres, how queries flow through the system, and the critical role of shared memory.
 
+----- From Gemini for Day 2
+
+Let's stop looking at them as isolated definitions. Instead, let's visualize them as a **team** working together to save **one single row** of data.
+
+Here is the **Relationship Map** to clear the fog.
+
+###1. The Hierarchy (The "Static" Stuff)Think of your data storage like a massive library.
+
+* **The Bookshelf (Heap File):** This is your Table (e.g., `Users`).
+* **The Book (Page):** This is the **Page**. It is a fixed-size container (8KB). You cannot read "just one line"; you have to pull the whole book off the shelf.
+* **The Sentence (Tuple):** This is the **Tuple** (Row). It lives *inside* the Page.
+* **The Card Catalog (Index):** This is the **Index**. It doesn't contain the story; it just says *"The sentence about 'John' is in Book #42, Line #3."*
+
+> **Relationship:** **Indexes** point to **Pages**, which contain **Tuples**.
+
+---
+
+###2. The Process (The "Moving" Stuff)Now, let's see what happens when you actually try to **do** something (like `INSERT` a row).
+
+####Phase 1: The Boss (Transaction)You type `BEGIN; INSERT INTO users...`
+
+* **The Transaction** is the **Manager**. It assigns the "Job ID" (XID 305) to this operation. It ensures that either *everything* happens, or *nothing* happens.
+
+####Phase 2: The Safety Net (WAL)Before touching the actual data, the Manager screams at the Scribe.
+
+* **The WAL (Write-Ahead Log)** is the **Security Log**.
+* **Rule:** "Write it down *here* before you touch the books!"
+* The WAL records: *"Transaction 305 intends to add 'John' to Page 42."*
+* **Why?** If the power goes out *right now*, we can read this log upon reboot and finish the job.
+
+####Phase 3: The Work (Pages & Tuples)Now that it's logged in the WAL, the work begins.
+
+* Postgres grabs **Page 42** from disk and loads it into memory (Shared Buffers).
+* It finds empty space inside Page 42 and writes the **Tuple** (the data for "John").
+* It stamps the Tuple with `xmin: 305` (Created by Manager 305).
+
+####Phase 4: The Map Update (Index)* Now that "John" is in the book, we need to update the Card Catalog.
+* Postgres goes to the **Index**, adds an entry for "John," and points it to `(Page 42, Tuple 3)`.
+
+---
+
+###The "One Story" SummaryIf you interpret this as a sequence, the relationship becomes clear:
+
+> "A **Transaction** (the event) starts by writing to the **WAL** (safety). It then loads a **Page** (container) to insert a **Tuple** (data). Finally, it updates the **Index** (pointer) so we can find that tuple later."
+
+###Visualizing the ConnectionsHere is a simplified view of how they touch each other:
+
+| Component A | Connects to B | How? |
+| --- | --- | --- |
+| **Index** | **Tuple** | Stores a pointer `(Page #, Offset #)` to finding the Tuple. |
+| **Page** | **Tuple** | The Page is the physical memory block; the Tuple is the data inside it. |
+| **Transaction** | **Tuple** | The Tuple stores the Transaction ID (`xmin`) in its header. |
+| **WAL** | **Page** | The WAL records *changes* made to Pages before they hit the disk. |
+
+
+
+-----------------------
+
+
+This is a "Slow Motion Replay" of a single UPDATE command. `UPDATE users SET age = 30 WHERE id = 1;`
+
+**The Scenario:**
+
+* **Table:** `users`
+* **Row:** `id: 1, age: 29` (Located on Page 42)
+* **Command:** `UPDATE users SET age = 30 WHERE id = 1;`
+* **Your Transaction ID:** `305`
+
+We will track the state of **4 Zones**:
+
+1. **RAM (Shared Buffers):** The workspace.
+2. **RAM (WAL Buffer):** The outgoing outbox for logs.
+3. **DISK (WAL File):** The permanent log.
+4. **DISK (Heap File):** The permanent data.
+
+---
+
+###Phase 0: The Calm Before the Storm**Time:** 00:00:00
+**State:** Everything is synced and quiet.
+
+**Snapshot:**
+
+* **Transaction 305:** Status = `IN_PROGRESS`
+* **Page 42 (Disk):** `Tuple A {id:1, age:29, xmin:100, xmax:0}`
+* **Page 42 (RAM):** `Clean copy of Disk`
+* **Dirty Bit:** `0` (False)
+
+---
+
+###Phase 1: The Fetch & Lock**Actor:** **Backend Process (Your Worker)**
+**Action:** Finds Page 42 via Index, loads it into Shared Buffers, and acquires an **Exclusive Lock** on the buffer.
+
+**What it sees:**
+
+> "I see Page 42 is in memory. I see Tuple A (id:1). I check `xmax` (0). It is alive. I check for row locks... none. I am locking this page so nobody else can write to it for a microsecond."
+
+**Inference:**
+
+> "I am allowed to modify this."
+
+---
+
+###Phase 2: The Mutation (The "Dirty" Phase)**Actor:** **Backend Process**
+**Action:** It performs the MVCC update in **RAM ONLY**.
+
+1. **Mark Old Tuple Dead:** Sets `xmax` on Tuple A to `305`.
+2. **Create New Tuple:** Inserts Tuple B (age 30) into the free space of Page 42.
+3. **Update LSN:** Updates the Page Header's `pd_lsn` to a new Log Sequence Number (`0/2000`). This is a "ticket number" that links this page version to the log we are about to write.
+4. **Set Dirty Bit:** Flags the page as `Dirty`.
+
+**Snapshot: Shared Buffers (RAM)**
+
+```text
+┌───────────────────────────────────────────────┐
+│ PAGE 42 (Header)                              │
+│ • pd_lsn:   0/2000 (UPDATED!)                 │
+│ • Dirty:    1      (TRUE!)                    │
+├───────────────────────────────────────────────┤
+│ Tuple A (Old):                                │
+│ • data: {id:1, age:29}                        │
+│ • xmin: 100                                   │
+│ • xmax: 305  (MARKED DEAD)                    │
+│ • ctid: (0, 2) -> Points to Tuple B           │
+├───────────────────────────────────────────────┤
+│ Tuple B (New):                                │
+│ • data: {id:1, age:30}                        │
+│ • xmin: 305  (BORN)                           │
+│ • xmax: 0                                     │
+│ • ctid: (0, 2)                                │
+└───────────────────────────────────────────────┘
+
+```
+
+**Snapshot: Heap File (Disk)**
+
+> **NO CHANGE.** Still shows Age 29. (This is why pulling the plug now would lose data without the WAL).
+
+---
+
+###Phase 3: The Receipt (WAL Write)**Actor:** **Backend Process** -> writes to -> **WAL Buffer**
+**Action:** Before it releases the lock, it must describe what it just did.
+
+**Values Written to WAL Buffer:**
+
+* **Transaction:** `305`
+* **Type:** `HEAP_UPDATE`
+* **Page:** `42`
+* **Old Tuple:** `Offset 1`
+* **New Tuple:** `Offset 2, data={age:30}`
+* **LSN:** `0/2000`
+
+**Inference:**
+
+> "I have recorded the intent. Even if memory fails, this note describes how to reconstruct the change."
+
+---
+
+###Phase 4: The Commit (The "Flush")**Actor:** **WAL Writer**
+**Trigger:** You type `COMMIT`.
+**Action:** Moves data from **WAL Buffer (RAM)** to **WAL File (Disk)**.
+
+**What it sees:**
+
+> "Transaction 305 is committing. I see pending logs in the buffer up to LSN `0/2000`."
+
+**Inference:**
+
+> "I must use `fsync()` to force the Operating System to physically write these bits to the spinning platter/SSD immediately. I cannot proceed until the hardware confirms the write."
+
+**Snapshot: WAL File (Disk)**
+
+```text
+[Position 0/2000] :: Txn 305 :: UPDATE Page 42 :: COMMIT
+
+```
+
+**Snapshot: Transaction Status**
+
+* **Txn 305:** `COMMITTED`
+
+> **CRITICAL MOMENT:** At this exact millisecond, the user sees "Success."
+> * **RAM:** Contains the new data (Age 30).
+> * **WAL Disk:** Contains the record of the change.
+> * **Heap Disk:** **STILL CONTAINS OLD DATA (Age 29)!**
+> 
+> 
+
+---
+
+###Phase 5: The Checkpoint (The Cleanup)**Actor:** **Checkpointer Process**
+**Trigger:** 5 minutes later (or max WAL size reached).
+**Action:** Reconciles the RAM with the Disk.
+
+**What it sees:**
+
+> "I am scanning Shared Buffers. I see Page 42 has `Dirty = 1`."
+> "I check Page 42's LSN (`0/2000`)."
+> "I check the WAL File. Has LSN `0/2000` been flushed to disk? Yes."
+
+**Inference:**
+
+> "It is safe to overwrite the main data file. If I crash during this write, we have the WAL to fix it. If I succeed, we can truncate the old WAL logs."
+
+**Action:** Writes the entire 8KB Page 42 from RAM to the Heap File on Disk.
+
+**Final Snapshot: Heap File (Disk)**
+
+```text
+┌───────────────────────────────────────────────┐
+│ PAGE 42 (Now physically on disk)              │
+├───────────────────────────────────────────────┤
+│ Tuple A: {id:1, age:29, xmax:305} (Dead)      │
+│ Tuple B: {id:1, age:30, xmax:0}   (Live)      │
+└───────────────────────────────────────────────┘
+
+```
+
+**State Update:**
+
+* **Page 42 (RAM):** `Dirty = 0` (Clean)
+
+---
+
+###Summary of State Variables| Variable | Phase 1 (Start) | Phase 2 (Update) | Phase 4 (Commit) | Phase 5 (Checkpoint) |
+| --- | --- | --- | --- | --- |
+| **RAM Data** | Age 29 | **Age 30** | Age 30 | Age 30 |
+| **Disk Data** | Age 29 | Age 29 | **Age 29** (Wait, what? Yes!) | **Age 30** |
+| **WAL File** | Empty | Empty | **"Txn 305 Updated"** | "Txn 305 Updated" |
+| **Dirty Bit** | 0 | **1** | 1 | **0** |
+| **Txn Status** | In Progress | In Progress | **Committed** | Committed |
+
+This table highlights the magic of Postgres: **Durability (WAL)** is separated from **Persistence (Data Files)**. We secure the data in the Log (Phase 4) long before we organize it in the File (Phase 5).
