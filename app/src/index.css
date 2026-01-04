@@ -1,0 +1,190 @@
+@import "tailwindcss";
+
+/* Biological Noir Theme */
+@theme {
+  /* Ocean Depths - Primary backgrounds */
+  --color-ocean: #0a1628;
+  --color-ocean-light: #142238;
+  --color-ocean-dark: #060d18;
+
+  /* Bioluminescent Glows */
+  --color-glow-healthy: #00d4ff;
+  --color-glow-warning: #ff9d00;
+  --color-glow-critical: #ff3366;
+  --color-glow-dead: #4a4a6a;
+
+  /* Text Colors */
+  --color-text-primary: #f0f0f5;
+  --color-text-secondary: #a0a0b0;
+  --color-text-muted: #606070;
+
+  /* Typography */
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Animation Durations */
+  --duration-breathe: 2.5s;
+  --duration-heartbeat: 1.8s;
+  --duration-hover: 0.3s;
+
+  /* Easing */
+  --ease-organic: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-breathe: cubic-bezier(0.37, 0, 0.63, 1);
+}
+
+/* Base Styles */
+:root {
+  font-family: var(--font-display);
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  color: var(--color-text-primary);
+  background-color: var(--color-ocean);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Hide default scrollbar for Lenis */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+/* Glow text effect */
+.glow-text {
+  color: var(--color-glow-healthy);
+  text-shadow:
+    0 0 10px rgba(0, 212, 255, 0.5),
+    0 0 20px rgba(0, 212, 255, 0.3),
+    0 0 40px rgba(0, 212, 255, 0.2);
+}
+
+.glow-text-warning {
+  color: var(--color-glow-warning);
+  text-shadow:
+    0 0 10px rgba(255, 157, 0, 0.5),
+    0 0 20px rgba(255, 157, 0, 0.3),
+    0 0 40px rgba(255, 157, 0, 0.2);
+}
+
+.glow-text-critical {
+  color: var(--color-glow-critical);
+  text-shadow:
+    0 0 10px rgba(255, 51, 102, 0.5),
+    0 0 20px rgba(255, 51, 102, 0.3),
+    0 0 40px rgba(255, 51, 102, 0.2);
+}
+
+/* Breathing animation for Heart/WAL */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(0.97);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 1;
+  }
+}
+
+.animate-breathe {
+  animation: breathe var(--duration-breathe) var(--ease-breathe) infinite;
+}
+
+/* Heartbeat animation - faster pulse */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.animate-heartbeat {
+  animation: heartbeat var(--duration-heartbeat) var(--ease-breathe) infinite;
+}
+
+/* Pulse ring animation */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s var(--ease-organic) infinite;
+}
+
+/* Floating animation for particles */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  25% {
+    transform: translateY(-10px) translateX(5px);
+  }
+  50% {
+    transform: translateY(-5px) translateX(-5px);
+  }
+  75% {
+    transform: translateY(-15px) translateX(3px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: var(--color-text-primary);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--color-glow-healthy);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
