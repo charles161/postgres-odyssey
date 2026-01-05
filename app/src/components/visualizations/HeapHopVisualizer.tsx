@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { colors } from '../../config/theme';
 import { pathwayMotion } from '../../config/animation';
+import { delay, isAbortError } from '../../lib/utils';
 
 interface BeamCoords {
   startX: number;
@@ -77,6 +78,20 @@ export function HeapHopVisualizer() {
   const highlightedEntryRef = useRef<HTMLDivElement>(null);
   const targetRowRef = useRef<HTMLDivElement>(null);
 
+  // Refs for cleanup
+  const animationFrameRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup animation frames on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   // Calculate beam coordinates when showing beam
   useEffect(() => {
     if (showBeam && highlightedEntryRef.current && containerRef.current) {
@@ -103,61 +118,82 @@ export function HeapHopVisualizer() {
   }, [showBeam, highlightedEntry]);
 
   const runDemo = useCallback(async () => {
-    // Reset
-    setPhase('idle');
-    setHighlightedEntry(null);
-    setHighlightedRow(null);
-    setShowBeam(false);
-    setBeamProgress(0);
+    // Cancel any existing animation
+    abortControllerRef.current?.abort();
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
 
-    await delay(300);
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
-    // Phase 1: Index lookup
-    setPhase('index-lookup');
-    await delay(1500);
+    try {
+      // Reset
+      setPhase('idle');
+      setHighlightedEntry(null);
+      setHighlightedRow(null);
+      setShowBeam(false);
+      setBeamProgress(0);
 
-    // Phase 2: Found ctid
-    const entry = indexEntries.find((e) => e.key === targetEmail)!;
-    setHighlightedEntry(entry);
-    setPhase('ctid-found');
-    await delay(2000); // Longer pause to appreciate ctid reveal
+      await delay(300, signal);
 
-    // Phase 3: Heap hop with beam animation
-    setPhase('heap-hop');
-    setShowBeam(true);
+      // Phase 1: Index lookup
+      setPhase('index-lookup');
+      await delay(1500, signal);
 
-    // Animate beam progress
-    const beamDuration = pathwayMotion.heapHop.duration * 1000;
-    const startTime = Date.now();
-    const animateBeam = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / beamDuration, 1);
-      setBeamProgress(progress);
-      if (progress < 1) {
-        requestAnimationFrame(animateBeam);
-      }
-    };
-    requestAnimationFrame(animateBeam);
+      // Phase 2: Found ctid
+      const entry = indexEntries.find((e) => e.key === targetEmail)!;
+      setHighlightedEntry(entry);
+      setPhase('ctid-found');
+      await delay(2000, signal); // Longer pause to appreciate ctid reveal
 
-    await delay(beamDuration + 200);
-    setShowBeam(false);
+      // Phase 3: Heap hop with beam animation
+      setPhase('heap-hop');
+      setShowBeam(true);
 
-    // Phase 4: Row fetched
-    const page = heapPages.find((p) => p.pageNum === entry.pageNum)!;
-    const row = page.rows[entry.rowNum];
-    setHighlightedRow(row);
-    setPhase('row-fetched');
-    await delay(1500);
+      // Animate beam progress
+      const beamDuration = pathwayMotion.heapHop.duration * 1000;
+      const startTime = Date.now();
+      const animateBeam = () => {
+        if (signal.aborted) return;
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / beamDuration, 1);
+        setBeamProgress(progress);
+        if (progress < 1) {
+          animationFrameRef.current = requestAnimationFrame(animateBeam);
+        }
+      };
+      animationFrameRef.current = requestAnimationFrame(animateBeam);
 
-    // Phase 5: Visibility check
-    setPhase('visibility-check');
-    await delay(1500);
+      await delay(beamDuration + 200, signal);
+      setShowBeam(false);
 
-    // Phase 6: Complete
-    setPhase('complete');
+      // Phase 4: Row fetched
+      const page = heapPages.find((p) => p.pageNum === entry.pageNum)!;
+      const row = page.rows[entry.rowNum];
+      setHighlightedRow(row);
+      setPhase('row-fetched');
+      await delay(1500, signal);
+
+      // Phase 5: Visibility check
+      setPhase('visibility-check');
+      await delay(1500, signal);
+
+      // Phase 6: Complete
+      setPhase('complete');
+    } catch (e) {
+      if (!isAbortError(e)) throw e;
+      // Animation was cancelled, that's fine
+    }
   }, [targetEmail]);
 
   const reset = useCallback(() => {
+    // Cancel any running animation
+    abortControllerRef.current?.abort();
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
     setPhase('idle');
     setHighlightedEntry(null);
     setHighlightedRow(null);
@@ -203,11 +239,11 @@ export function HeapHopVisualizer() {
       {/* Progress Steps */}
       <div className="flex justify-between mb-8 px-4">
         {[
-          { id: 'index-lookup', label: '1. Index Lookup' },
-          { id: 'ctid-found', label: '2. Get ctid' },
-          { id: 'heap-hop', label: '3. Heap Hop' },
-          { id: 'visibility-check', label: '4. Visibility' },
-          { id: 'complete', label: '5. Return' },
+          { id: 'index-lookup', label: '1. Index Lookup', shortLabel: 'Index' },
+          { id: 'ctid-found', label: '2. Get ctid', shortLabel: 'ctid' },
+          { id: 'heap-hop', label: '3. Heap Hop', shortLabel: 'Hop' },
+          { id: 'visibility-check', label: '4. Visibility', shortLabel: 'Check' },
+          { id: 'complete', label: '5. Return', shortLabel: 'Done' },
         ].map((step, i) => {
           const stepPhases = ['index-lookup', 'ctid-found', 'heap-hop', 'row-fetched', 'visibility-check', 'complete'];
           const currentIdx = stepPhases.indexOf(phase);
@@ -228,10 +264,12 @@ export function HeapHopVisualizer() {
                 {i + 1}
               </motion.div>
               <span
-                className="text-xs text-center hidden md:block"
+                className="text-xs text-center"
                 style={{ color: isActive ? colors.glow.healthy : colors.text.muted }}
+                title={step.label}
               >
-                {step.label}
+                <span className="hidden sm:inline">{step.label}</span>
+                <span className="sm:hidden">{step.shortLabel}</span>
               </span>
             </div>
           );
@@ -691,8 +729,4 @@ export function HeapHopVisualizer() {
       </div>
     </div>
   );
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

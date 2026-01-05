@@ -10,6 +10,8 @@ interface EpisodeCardProps {
   route: string;
   glowColor: string;
   children: ReactNode; // The visualization component
+  comingSoon?: boolean;
+  isCompleted?: boolean;
 }
 
 export function EpisodeCard({
@@ -19,33 +21,64 @@ export function EpisodeCard({
   route,
   glowColor,
   children,
+  comingSoon = false,
+  isCompleted = false,
 }: EpisodeCardProps) {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Combined active state for hover or focus
+  const isActive = isHovered || isFocused;
+
+  const handleClick = () => {
+    if (!comingSoon) {
+      navigate(route);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  };
 
   return (
     <motion.div
-      className="relative rounded-2xl overflow-hidden cursor-pointer"
+      className="relative rounded-2xl overflow-hidden outline-none"
       style={{
         background: `linear-gradient(135deg, ${colors.oceanDark} 0%, ${colors.oceanLight} 100%)`,
         border: `2px solid ${glowColor}30`,
+        cursor: comingSoon ? 'default' : 'pointer',
+        opacity: comingSoon ? 0.6 : 1,
       }}
       initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{ opacity: comingSoon ? 0.6 : 1, y: 0 }}
       transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
-      whileHover={{
+      whileHover={comingSoon ? {} : {
         scale: 1.02,
         borderColor: `${glowColor}60`,
       }}
-      onClick={() => navigate(route)}
-      onMouseEnter={() => setIsHovered(true)}
+      whileFocus={comingSoon ? {} : {
+        scale: 1.02,
+        borderColor: `${glowColor}60`,
+      }}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      onMouseEnter={() => !comingSoon && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => !comingSoon && setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      tabIndex={comingSoon ? -1 : 0}
+      role="button"
+      aria-label={`Episode ${episodeNumber}: ${title}. ${tagline}${isCompleted ? '. Completed' : ''}`}
     >
-      {/* Glow effect on hover */}
+      {/* Glow effect on hover/focus */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         animate={{
-          boxShadow: isHovered
+          boxShadow: isActive
             ? `0 0 60px ${glowColor}30, inset 0 0 40px ${glowColor}10`
             : `0 0 0px transparent`,
         }}
@@ -70,18 +103,46 @@ export function EpisodeCard({
             border: `1px solid ${glowColor}40`,
           }}
           animate={{
-            boxShadow: isHovered ? `0 0 20px ${glowColor}40` : 'none',
+            boxShadow: isActive ? `0 0 20px ${glowColor}40` : 'none',
           }}
         >
           Episode {episodeNumber}
         </motion.div>
       </div>
 
+      {/* Completed badge */}
+      {isCompleted && (
+        <motion.div
+          className="absolute top-5 right-5 z-10"
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+        >
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{
+              background: colors.glow.healthy,
+              boxShadow: `0 0 15px ${colors.glow.healthy}60`,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M3 8L6.5 11.5L13 4.5"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </motion.div>
+      )}
+
       {/* Visualization container */}
       <div className="relative h-64 flex items-center justify-center overflow-hidden">
         <motion.div
           animate={{
-            scale: isHovered ? 1.05 : 1,
+            scale: isActive ? 1.05 : 1,
           }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         >
@@ -96,7 +157,7 @@ export function EpisodeCard({
           className="text-2xl font-semibold mb-2"
           style={{ color: colors.text.primary }}
           animate={{
-            color: isHovered ? glowColor : colors.text.primary,
+            color: isActive ? glowColor : colors.text.primary,
           }}
           transition={{ duration: 0.3 }}
         >
@@ -112,32 +173,40 @@ export function EpisodeCard({
         <motion.div
           className="mt-4 flex items-center gap-2"
           animate={{
-            opacity: isHovered ? 1 : 0.6,
-            x: isHovered ? 4 : 0,
+            opacity: isActive ? 1 : 0.6,
+            x: isActive && !comingSoon ? 4 : 0,
           }}
           transition={{ duration: 0.3 }}
         >
-          <span className="text-sm font-medium" style={{ color: glowColor }}>
-            Begin Journey
-          </span>
-          <motion.svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            animate={{
-              x: isHovered ? 4 : 0,
-            }}
-            transition={{ duration: 0.3 }}
-          >
-            <path
-              d="M3 8H13M13 8L9 4M13 8L9 12"
-              stroke={glowColor}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </motion.svg>
+          {comingSoon ? (
+            <span className="text-sm font-medium" style={{ color: colors.text.muted }}>
+              Coming Soon
+            </span>
+          ) : (
+            <>
+              <span className="text-sm font-medium" style={{ color: glowColor }}>
+                {isCompleted ? 'Revisit' : 'Begin Journey'}
+              </span>
+              <motion.svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                animate={{
+                  x: isActive ? 4 : 0,
+                }}
+                transition={{ duration: 0.3 }}
+              >
+                <path
+                  d="M3 8H13M13 8L9 4M13 8L9 12"
+                  stroke={glowColor}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </motion.svg>
+            </>
+          )}
         </motion.div>
       </div>
 
@@ -146,8 +215,8 @@ export function EpisodeCard({
         className="absolute bottom-0 left-0 right-0 h-1"
         style={{ background: glowColor }}
         animate={{
-          opacity: isHovered ? 0.8 : 0.3,
-          scaleX: isHovered ? 1 : 0.3,
+          opacity: isActive ? 0.8 : 0.3,
+          scaleX: isActive ? 1 : 0.3,
         }}
         transition={{ duration: 0.4 }}
       />

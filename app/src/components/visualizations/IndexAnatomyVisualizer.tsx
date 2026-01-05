@@ -234,7 +234,10 @@ export function IndexAnatomyVisualizer() {
               {EMAIL_INDEX.map((entry) => (
                 <motion.div
                   key={entry.key}
-                  className="grid grid-cols-2 gap-px text-xs font-mono py-1.5 px-2 rounded cursor-pointer"
+                  className="grid grid-cols-2 gap-px text-xs font-mono py-1.5 px-2 rounded cursor-pointer focus-ring"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Index entry: ${entry.key}, pointer: ${entry.ctid}`}
                   style={{
                     background:
                       highlightedCtid === entry.ctid
@@ -244,6 +247,8 @@ export function IndexAnatomyVisualizer() {
                   }}
                   onMouseEnter={() => handleIndexHover(entry.ctid)}
                   onMouseLeave={handleIndexLeave}
+                  onFocus={() => handleIndexHover(entry.ctid)}
+                  onBlur={handleIndexLeave}
                   whileHover={{ x: 4 }}
                 >
                   <span

@@ -115,6 +115,37 @@ export const pathwayMotion = {
   },
 } as const;
 
+// B-tree Navigator - Centralized timing for consistent animations
+export const btreeNavigation = {
+  // Timing (in milliseconds for delay(), seconds for framer-motion)
+  timing: {
+    rootInspection: 1200,    // ms - time to examine root
+    signalTravel: 600,       // ms - signal traveling between nodes
+    nodeInspection: 800,     // ms - time at each internal node
+    leafScan: 600,           // ms - scanning leaf entries
+    questionReveal: 500,     // ms - showing the question
+    answerReveal: 400,       // ms - revealing the answer
+  },
+  // Easing functions - standardized for predictability
+  easing: {
+    stateChange: 'easeOut',  // For opacity, scale, filter changes
+    entrance: [0.34, 1.56, 0.64, 1], // Spring-like overshoot for entrances
+    signal: 'linear',        // Constant speed for traveling signals
+  },
+  // Pulse ring configuration - unified for all nodes
+  pulseRing: {
+    duration: 1.2,
+    scale: 1.4,              // Same for TreeNodeBox and LeafNodeBox
+    stagger: 0.4,            // Delay between rings
+  },
+  // Breathing animation - synchronized across all path elements
+  breathing: {
+    duration: 2,             // Slower, more relaxed
+    opacity: [0.7, 1, 0.7],
+    ease: 'easeInOut',
+  },
+} as const;
+
 // ScrollTrigger defaults
 export const scrollConfig = {
   // Default scrub value (smoothness)

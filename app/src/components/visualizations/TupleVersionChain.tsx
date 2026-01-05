@@ -120,10 +120,17 @@ export function TupleVersionChain() {
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true }}
-                className="relative cursor-pointer"
+                className="relative cursor-pointer focus-ring"
+                tabIndex={0}
+                role="button"
+                aria-label={`Tuple version ${version.id}: ${version.status}`}
+                aria-pressed={isSelected}
                 onClick={() => setSelectedVersion(isSelected ? null : version.id)}
+                onKeyDown={(e) => e.key === 'Enter' && setSelectedVersion(isSelected ? null : version.id)}
                 onMouseEnter={() => setHoveredVersion(version.id)}
                 onMouseLeave={() => setHoveredVersion(null)}
+                onFocus={() => setHoveredVersion(version.id)}
+                onBlur={() => setHoveredVersion(null)}
               >
                 <motion.div
                   className="p-4 rounded-lg relative overflow-hidden"

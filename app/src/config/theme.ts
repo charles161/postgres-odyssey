@@ -18,7 +18,7 @@ export const colors = {
   text: {
     primary: '#f0f0f5',
     secondary: '#a0a0b0',
-    muted: '#606070',
+    muted: '#8a8a9a', // Changed from #606070 for WCAG AA contrast (4.5:1 ratio)
   },
 } as const;
 

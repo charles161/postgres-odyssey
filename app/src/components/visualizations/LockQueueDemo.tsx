@@ -605,6 +605,7 @@ export function LockQueueDemo() {
             type="checkbox"
             checked={lockTimeout}
             onChange={(e) => setLockTimeout(e.target.checked)}
+            aria-label="Enable lock timeout of 3 seconds"
             className="rounded"
           />
           <span className="text-sm" style={{ color: lockTimeout ? colors.glow.healthy : colors.text.muted }}>

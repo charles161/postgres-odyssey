@@ -275,7 +275,7 @@ export function StrategyOpening({ onComplete }: StrategyOpeningProps) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  Episode 6
+                  Episode 7
                 </motion.p>
 
                 <motion.h1

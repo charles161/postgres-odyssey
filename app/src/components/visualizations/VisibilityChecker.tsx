@@ -139,6 +139,7 @@ export function VisibilityChecker() {
             max={250}
             value={myTxn}
             onChange={(e) => setMyTxn(Number(e.target.value))}
+            aria-label="Your transaction ID"
             className="w-full accent-cyan-400"
             style={{ accentColor: colors.glow.healthy }}
           />
@@ -176,6 +177,7 @@ export function VisibilityChecker() {
             max={250}
             value={xmin}
             onChange={(e) => setXmin(Number(e.target.value))}
+            aria-label="Tuple xmin - transaction that created this tuple"
             className="w-full"
             style={{ accentColor: colors.glow.healthy }}
           />
@@ -210,6 +212,7 @@ export function VisibilityChecker() {
               value={xmax ?? 200}
               onChange={(e) => setXmax(Number(e.target.value))}
               disabled={xmaxInfinity}
+              aria-label="Tuple xmax - transaction that deleted this tuple"
               className="flex-1"
               style={{
                 accentColor: colors.glow.critical,
@@ -221,6 +224,7 @@ export function VisibilityChecker() {
                 type="checkbox"
                 checked={xmaxInfinity}
                 onChange={(e) => setXmaxInfinity(e.target.checked)}
+                aria-label="Set xmax to infinity - tuple is still alive"
                 className="rounded"
               />
               <span style={{ color: colors.text.muted }}>∞ (alive)</span>

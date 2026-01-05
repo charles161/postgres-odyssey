@@ -78,15 +78,22 @@ export function LockTypeMatrix() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="p-4 rounded-xl cursor-pointer relative overflow-hidden"
+              className="p-4 rounded-xl cursor-pointer relative overflow-hidden focus-ring"
+              tabIndex={0}
+              role="button"
+              aria-label={`${lock.name} lock: ${lock.description}`}
+              aria-pressed={isSelected}
               style={{
                 background: colors.oceanLight,
                 border: `2px solid ${isSelected || isHovered ? lock.color : lock.color + '30'}`,
                 boxShadow: isSelected ? `0 0 20px ${lock.color}30` : 'none',
               }}
               onClick={() => setSelectedLock(isSelected ? null : lock)}
+              onKeyDown={(e) => e.key === 'Enter' && setSelectedLock(isSelected ? null : lock)}
               onMouseEnter={() => setHoveredLock(lock.name)}
               onMouseLeave={() => setHoveredLock(null)}
+              onFocus={() => setHoveredLock(lock.name)}
+              onBlur={() => setHoveredLock(null)}
             >
               {/* Color indicator */}
               <div

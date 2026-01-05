@@ -257,7 +257,7 @@ export function MicroDisasterOpening({ onComplete }: MicroDisasterOpeningProps) 
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                Episode 5
+                Episode 9
               </motion.p>
               <motion.h1
                 className="text-5xl md:text-7xl font-medium"

@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { colors } from '../../config/theme';
 import { pathwayMotion } from '../../config/animation';
+import { delay } from '../../lib/utils';
 
 export function SplitScreenComparison() {
   const [isRunning, setIsRunning] = useState(false);
@@ -9,10 +10,40 @@ export function SplitScreenComparison() {
   const [indexCount, setIndexCount] = useState(0);
   const [phase, setPhase] = useState<'idle' | 'running' | 'complete'>('idle');
 
+  // Pre-generate random values for render stability
+  const chaosBarStyles = useMemo(() =>
+    Array.from({ length: 50 }, () => ({
+      opacity: Math.random() * 0.5 + 0.5,
+      width: `${Math.random() * 30 + 60}%`,
+    })), []);
+
+  const flyingPageStyles = useMemo(() =>
+    Array.from({ length: 8 }, () => ({
+      left: `${10 + Math.random() * 80}%`,
+      duration: 1.2 + Math.random() * 0.5,
+      pageNum: Math.floor(Math.random() * 800000),
+    })), []);
+
+  // Refs for animation frame cleanup
+  const indexAnimationRef = useRef<number | null>(null);
+  const seqAnimationRef = useRef<number | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (indexAnimationRef.current) cancelAnimationFrame(indexAnimationRef.current);
+      if (seqAnimationRef.current) cancelAnimationFrame(seqAnimationRef.current);
+    };
+  }, []);
+
   const targetSeqScan = 847293;
   const targetIndex = 3;
 
   const runComparison = useCallback(async () => {
+    // Cancel any existing animations
+    if (indexAnimationRef.current) cancelAnimationFrame(indexAnimationRef.current);
+    if (seqAnimationRef.current) cancelAnimationFrame(seqAnimationRef.current);
+
     setIsRunning(true);
     setPhase('running');
     setSeqScanCount(0);
@@ -26,10 +57,10 @@ export function SplitScreenComparison() {
       const progress = Math.min(elapsed / indexDuration, 1);
       setIndexCount(Math.floor(progress * targetIndex));
       if (progress < 1) {
-        requestAnimationFrame(animateIndex);
+        indexAnimationRef.current = requestAnimationFrame(animateIndex);
       }
     };
-    requestAnimationFrame(animateIndex);
+    indexAnimationRef.current = requestAnimationFrame(animateIndex);
 
     // Animate seq scan count (fast counter roll effect)
     const seqDuration = pathwayMotion.counterRoll.duration * 1000;
@@ -41,10 +72,10 @@ export function SplitScreenComparison() {
       const eased = 1 - Math.pow(1 - progress, 3);
       setSeqScanCount(Math.floor(eased * targetSeqScan));
       if (progress < 1) {
-        requestAnimationFrame(animateSeq);
+        seqAnimationRef.current = requestAnimationFrame(animateSeq);
       }
     };
-    requestAnimationFrame(animateSeq);
+    seqAnimationRef.current = requestAnimationFrame(animateSeq);
 
     await delay(seqDuration + 500);
     setPhase('complete');
@@ -52,6 +83,10 @@ export function SplitScreenComparison() {
   }, []);
 
   const reset = useCallback(() => {
+    // Cancel any running animations
+    if (indexAnimationRef.current) cancelAnimationFrame(indexAnimationRef.current);
+    if (seqAnimationRef.current) cancelAnimationFrame(seqAnimationRef.current);
+
     setPhase('idle');
     setSeqScanCount(0);
     setIndexCount(0);
@@ -194,14 +229,14 @@ export function SplitScreenComparison() {
                   animate={{ y: [0, -800] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
                 >
-                  {[...Array(50)].map((_, i) => (
+                  {chaosBarStyles.map((style, i) => (
                     <div
                       key={i}
                       className="h-3 mx-4 rounded"
                       style={{
                         background: colors.glow.critical,
-                        opacity: Math.random() * 0.5 + 0.5,
-                        width: `${Math.random() * 30 + 60}%`,
+                        opacity: style.opacity,
+                        width: style.width,
                       }}
                     />
                   ))}
@@ -219,13 +254,13 @@ export function SplitScreenComparison() {
                 animate={{ opacity: 0.2 }}
                 exit={{ opacity: 0 }}
               >
-                {[...Array(8)].map((_, i) => (
+                {flyingPageStyles.map((style, i) => (
                   <motion.div
                     key={i}
                     className="absolute text-xs font-mono"
                     style={{
                       color: colors.glow.critical,
-                      left: `${10 + Math.random() * 80}%`,
+                      left: style.left,
                     }}
                     initial={{ y: -20, opacity: 0 }}
                     animate={{
@@ -233,13 +268,13 @@ export function SplitScreenComparison() {
                       opacity: [0, 0.8, 0.8, 0],
                     }}
                     transition={{
-                      duration: 1.2 + Math.random() * 0.5,
+                      duration: style.duration,
                       repeat: Infinity,
                       delay: i * 0.15,
                       ease: 'linear',
                     }}
                   >
-                    pg_{Math.floor(Math.random() * 800000)}
+                    pg_{style.pageNum}
                   </motion.div>
                 ))}
               </motion.div>
@@ -432,8 +467,4 @@ export function SplitScreenComparison() {
       </div>
     </div>
   );
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

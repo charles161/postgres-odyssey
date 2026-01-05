@@ -240,7 +240,7 @@ export function PathwaysOpening({ onComplete }: PathwaysOpeningProps) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  Episode 5
+                  Episode 6
                 </motion.p>
 
                 <motion.h1

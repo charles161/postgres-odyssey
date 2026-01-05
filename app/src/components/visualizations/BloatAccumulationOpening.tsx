@@ -263,7 +263,7 @@ export function BloatAccumulationOpening({ onComplete }: BloatAccumulationOpenin
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                Episode 6
+                Episode 10
               </motion.p>
 
               <motion.h1

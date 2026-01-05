@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { colors } from '../../config/theme';
 
@@ -19,6 +19,16 @@ export function BloatMonitor() {
   const [vacuumSweepY, setVacuumSweepY] = useState(-1);
   const nextIdRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const vacuumAnimationRef = useRef<number | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (vacuumAnimationRef.current) {
+        cancelAnimationFrame(vacuumAnimationRef.current);
+      }
+    };
+  }, []);
 
   // Calculate stats
   const liveTuples = tuples.filter((t) => !t.isDead).length;
@@ -70,8 +80,13 @@ export function BloatMonitor() {
     }
   }, [autovacuumEnabled, bloatPercentage, tuples.length, isVacuuming]);
 
-  const runVacuum = () => {
+  const runVacuum = useCallback(() => {
     if (isVacuuming) return;
+
+    // Cancel any existing vacuum animation
+    if (vacuumAnimationRef.current) {
+      cancelAnimationFrame(vacuumAnimationRef.current);
+    }
 
     setIsVacuuming(true);
     setVacuumSweepY(0);
@@ -86,7 +101,7 @@ export function BloatMonitor() {
       setVacuumSweepY(progress * 100);
 
       if (progress < 1) {
-        requestAnimationFrame(animateSweep);
+        vacuumAnimationRef.current = requestAnimationFrame(animateSweep);
       } else {
         // Remove dead tuples
         setTuples((prev) => prev.filter((t) => !t.isDead));
@@ -95,16 +110,21 @@ export function BloatMonitor() {
       }
     };
 
-    requestAnimationFrame(animateSweep);
-  };
+    vacuumAnimationRef.current = requestAnimationFrame(animateSweep);
+  }, [isVacuuming]);
 
-  const reset = () => {
+  const reset = useCallback(() => {
+    // Cancel any running vacuum animation
+    if (vacuumAnimationRef.current) {
+      cancelAnimationFrame(vacuumAnimationRef.current);
+    }
+
     setIsRunning(false);
     setTuples([]);
     nextIdRef.current = 0;
     setIsVacuuming(false);
     setVacuumSweepY(-1);
-  };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -270,6 +290,7 @@ export function BloatMonitor() {
             max="10"
             value={writeRate}
             onChange={(e) => setWriteRate(Number(e.target.value))}
+            aria-label="Write rate - transactions per second"
             className="w-24"
           />
           <span className="font-mono text-sm w-8" style={{ color: colors.text.secondary }}>

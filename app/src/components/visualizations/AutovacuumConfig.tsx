@@ -110,6 +110,7 @@ export function AutovacuumConfig() {
               step="1000"
               value={tableRows}
               onChange={(e) => setTableRows(Number(e.target.value))}
+              aria-label="Table size - number of live tuples"
               className="w-full"
             />
             <div className="flex justify-between text-xs" style={{ color: colors.text.muted }}>
@@ -136,6 +137,7 @@ export function AutovacuumConfig() {
                 setScaleFactor(Number(e.target.value));
                 setSelectedPreset('custom');
               }}
+              aria-label="Autovacuum vacuum scale factor"
               className="w-full"
             />
             <div className="flex justify-between text-xs" style={{ color: colors.text.muted }}>
@@ -162,6 +164,7 @@ export function AutovacuumConfig() {
                 setThreshold(Number(e.target.value));
                 setSelectedPreset('custom');
               }}
+              aria-label="Autovacuum vacuum threshold"
               className="w-full"
             />
             <div className="flex justify-between text-xs" style={{ color: colors.text.muted }}>
@@ -290,6 +293,7 @@ export function AutovacuumConfig() {
                         setCostDelay(Number(e.target.value));
                         setSelectedPreset('custom');
                       }}
+                      aria-label="Vacuum cost delay in milliseconds"
                       className="w-full"
                     />
                     <p className="text-xs" style={{ color: colors.text.muted }}>
@@ -315,6 +319,7 @@ export function AutovacuumConfig() {
                         setCostLimit(Number(e.target.value));
                         setSelectedPreset('custom');
                       }}
+                      aria-label="Vacuum cost limit"
                       className="w-full"
                     />
                     <p className="text-xs" style={{ color: colors.text.muted }}>

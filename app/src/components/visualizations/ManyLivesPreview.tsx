@@ -11,52 +11,141 @@ export function ManyLivesPreview() {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Background glow */}
+      {/* Background glow - pulsing */}
       <motion.div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle at center, ${colors.glow.healthy}10 0%, transparent 70%)`,
+          background: `radial-gradient(circle at center, ${colors.glow.warning}15 0%, transparent 70%)`,
         }}
-        animate={{ opacity: isHovered ? 0.8 : 0.3 }}
-        transition={{ duration: 0.4 }}
+        animate={{
+          opacity: isHovered ? 0.8 : [0.3, 0.5, 0.3],
+          scale: isHovered ? 1 : [1, 1.1, 1],
+        }}
+        transition={{
+          duration: isHovered ? 0.4 : 2,
+          repeat: isHovered ? 0 : Infinity,
+          ease: 'easeInOut',
+        }}
       />
 
-      {/* Transaction labels */}
-      <motion.div
-        className="absolute left-4 top-4 flex flex-col gap-2 text-xs font-mono"
-        animate={{ opacity: isHovered ? 1 : 0.5 }}
-      >
-        <div
+      {/* Transaction labels with pulse animation */}
+      <div className="absolute left-4 top-4 flex flex-col gap-2 text-xs font-mono">
+        <motion.div
           className="px-2 py-1 rounded"
           style={{ background: colors.glow.healthy + '20', color: colors.glow.healthy }}
+          animate={{
+            opacity: isHovered ? 1 : [0.5, 0.8, 0.5],
+            scale: isHovered ? 1 : [1, 1.02, 1],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
         >
           TXN 100
-        </div>
-        <div
+        </motion.div>
+        <motion.div
           className="px-2 py-1 rounded"
           style={{ background: colors.glow.warning + '20', color: colors.glow.warning }}
+          animate={{
+            opacity: isHovered ? 1 : [0.5, 0.8, 0.5],
+            scale: isHovered ? 1 : [1, 1.02, 1],
+          }}
+          transition={{
+            duration: 1.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: 0.5,
+          }}
         >
           TXN 105
-        </div>
-      </motion.div>
+        </motion.div>
+      </div>
 
-      {/* Center tuple that splits */}
+      {/* Center tuple versions - showing MVCC concept */}
       <div className="relative">
-        {/* Original single tuple (fades out on hover) */}
+        {/* Ghost versions in background - always visible, subtle */}
         <motion.div
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-6 py-4 rounded-lg font-mono text-lg"
+          className="absolute px-5 py-3 rounded-lg font-mono text-sm"
           style={{
             background: colors.oceanLight,
-            border: `2px solid ${colors.glow.healthy}40`,
+            border: `1px solid ${colors.glow.healthy}30`,
+            color: colors.glow.healthy,
+            left: -45,
+            top: -15,
+          }}
+          animate={{
+            opacity: isHovered ? 0 : [0.2, 0.35, 0.2],
+            x: isHovered ? -20 : 0,
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        >
+          v1
+        </motion.div>
+
+        <motion.div
+          className="absolute px-5 py-3 rounded-lg font-mono text-sm"
+          style={{
+            background: colors.oceanLight,
+            border: `1px solid ${colors.glow.warning}30`,
+            color: colors.glow.warning,
+            left: 35,
+            top: 10,
+          }}
+          animate={{
+            opacity: isHovered ? 0 : [0.2, 0.35, 0.2],
+            x: isHovered ? 20 : 0,
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: 0.7,
+          }}
+        >
+          v2
+        </motion.div>
+
+        {/* Main tuple - breathing animation */}
+        <motion.div
+          className="relative px-6 py-4 rounded-lg font-mono"
+          style={{
+            background: colors.oceanLight,
+            border: `2px solid ${colors.glow.warning}60`,
             color: colors.text.primary,
+            boxShadow: `0 0 20px ${colors.glow.warning}20`,
           }}
           animate={{
             opacity: isHovered ? 0 : 1,
-            scale: isHovered ? 0.8 : 1,
+            scale: isHovered ? 0.8 : [1, 1.02, 1],
+            borderColor: isHovered
+              ? `${colors.glow.warning}60`
+              : [`${colors.glow.healthy}60`, `${colors.glow.warning}60`, `${colors.glow.healthy}60`],
           }}
-          transition={{ duration: 0.3 }}
+          transition={{
+            duration: 2.5,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
         >
-          balance = ?
+          <span style={{ color: colors.text.muted }}>balance =</span>{' '}
+          <motion.span
+            animate={{
+              opacity: [1, 0.5, 1],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          >
+            ?
+          </motion.span>
         </motion.div>
 
         {/* Left split - TXN 100 sees $1,000 */}
@@ -145,27 +234,39 @@ export function ManyLivesPreview() {
 
       {/* Bottom label */}
       <motion.div
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs font-mono uppercase tracking-wider"
-        style={{ color: colors.text.muted }}
-        animate={{ opacity: isHovered ? 1 : 0.6 }}
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-mono uppercase tracking-wider"
+        style={{
+          background: `${colors.oceanDark}90`,
+          color: colors.glow.warning,
+          border: `1px solid ${colors.glow.warning}30`,
+        }}
+        animate={{
+          opacity: isHovered ? 1 : [0.6, 0.8, 0.6],
+          borderColor: isHovered ? `${colors.glow.warning}60` : `${colors.glow.warning}30`,
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
       >
-        xmin / xmax visibility
+        MVCC
       </motion.div>
 
-      {/* Shimmer effect on hover */}
+      {/* Shimmer effect - always on, faster on hover */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `linear-gradient(105deg, transparent 40%, ${colors.glow.healthy}10 50%, transparent 60%)`,
+          background: `linear-gradient(105deg, transparent 40%, ${colors.glow.warning}08 50%, transparent 60%)`,
           backgroundSize: '200% 100%',
         }}
         animate={{
-          backgroundPosition: isHovered ? ['200% 0', '-200% 0'] : '200% 0',
+          backgroundPosition: ['200% 0', '-200% 0'],
         }}
         transition={{
-          duration: 1.5,
+          duration: isHovered ? 1.5 : 3,
           ease: 'linear',
-          repeat: isHovered ? Infinity : 0,
+          repeat: Infinity,
         }}
       />
     </div>

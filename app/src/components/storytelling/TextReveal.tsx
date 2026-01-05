@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from '../../lib/gsap';
 import { colors } from '../../config/theme';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface TextRevealProps {
   children: string;
@@ -24,12 +25,20 @@ export function TextReveal({
 }: TextRevealProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isRevealed, setIsRevealed] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   // Split text into words
   const words = children.split(' ');
 
   useEffect(() => {
     if (!isActive || !containerRef.current || isRevealed) return;
+
+    // Skip animation for reduced motion preference
+    if (prefersReducedMotion) {
+      setIsRevealed(true);
+      onComplete?.();
+      return;
+    }
 
     const elements = containerRef.current.querySelectorAll('.reveal-word');
 
@@ -51,7 +60,7 @@ export function TextReveal({
     return () => {
       tl.kill();
     };
-  }, [isActive, isRevealed, stagger, onComplete]);
+  }, [isActive, isRevealed, stagger, onComplete, prefersReducedMotion]);
 
   return (
     <div ref={containerRef} className={className}>
@@ -86,9 +95,27 @@ interface OpeningRevealProps {
 
 export function OpeningReveal({ onComplete }: OpeningRevealProps) {
   const [phase, setPhase] = useState(0);
+  const [showSkip, setShowSkip] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
+
+  // Show skip button after 1 second
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSkip(true), 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // If user prefers reduced motion, skip the intro entirely
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      onComplete?.();
+    }
+  }, [prefersReducedMotion, onComplete]);
 
   useEffect(() => {
+    // Skip timeline if reduced motion is preferred
+    if (prefersReducedMotion) return;
+
     // Simplified timeline:
     // Phase 0: Black screen (1.5s)
     // Phase 1: "Before there was a query..." fades in as ONE line
@@ -115,7 +142,7 @@ export function OpeningReveal({ onComplete }: OpeningRevealProps) {
     }
 
     return () => clearTimeout(timeoutId);
-  }, [phase, onComplete]);
+  }, [phase, onComplete, prefersReducedMotion]);
 
   return (
     <div
@@ -176,6 +203,30 @@ export function OpeningReveal({ onComplete }: OpeningRevealProps) {
           8,192 bytes of possibility
         </motion.p>
       </div>
+
+      {/* Skip button */}
+      <AnimatePresence>
+        {showSkip && (
+          <motion.button
+            className="fixed bottom-8 right-8 px-4 py-2 text-sm font-mono rounded-full transition-colors"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onComplete}
+            style={{
+              color: colors.text.muted,
+              background: colors.oceanLight,
+              border: `1px solid ${colors.text.muted}40`,
+            }}
+            whileHover={{
+              color: colors.text.secondary,
+              borderColor: colors.text.secondary,
+            }}
+          >
+            Skip intro →
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -16,7 +16,7 @@
   /* Text Colors */
   --color-text-primary: #f0f0f5;
   --color-text-secondary: #a0a0b0;
-  --color-text-muted: #606070;
+  --color-text-muted: #8a8a9a; /* WCAG AA contrast ratio */
 
   /* Typography */
   --font-display: "Inter", system-ui, sans-serif;
@@ -176,6 +176,32 @@ html.lenis, html.lenis body {
 :focus-visible {
   outline: 2px solid var(--color-glow-healthy);
   outline-offset: 2px;
+}
+
+/* Focus ring utility classes for buttons */
+.focus-ring {
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-ocean-dark),
+    0 0 0 4px var(--color-glow-healthy);
+}
+
+.focus-ring-warning:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-ocean-dark),
+    0 0 0 4px var(--color-glow-warning);
+}
+
+.focus-ring-critical:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-ocean-dark),
+    0 0 0 4px var(--color-glow-critical);
 }
 
 /* Reduced motion */

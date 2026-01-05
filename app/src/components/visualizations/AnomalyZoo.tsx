@@ -49,9 +49,13 @@ const anomalies: Anomaly[] = [
       'A phantom row appeared!',
     ],
     problem: 'T1 cannot trust that the SET of matching rows stays the same.',
-    preventedBy: ['SERIALIZABLE'],
+    preventedBy: ['REPEATABLE READ*', 'SERIALIZABLE'],
   },
 ];
+
+// Note: PostgreSQL's REPEATABLE READ uses snapshot isolation, which prevents phantoms.
+// This is stricter than the SQL standard which only requires SERIALIZABLE to prevent phantoms.
+// The asterisk indicates PostgreSQL-specific behavior.
 
 export function AnomalyZoo() {
   const [selectedAnomaly, setSelectedAnomaly] = useState<Anomaly | null>(null);
@@ -327,6 +331,22 @@ export function AnomalyZoo() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* PostgreSQL-specific note */}
+      <div
+        className="mt-6 p-3 rounded-lg text-xs"
+        style={{
+          background: colors.ocean,
+          border: `1px solid ${colors.text.muted}20`,
+        }}
+      >
+        <strong style={{ color: colors.text.secondary }}>PostgreSQL Note:</strong>{' '}
+        <span style={{ color: colors.text.muted }}>
+          PostgreSQL's REPEATABLE READ uses true snapshot isolation, which also prevents
+          phantom reads. The SQL standard only requires SERIALIZABLE to prevent phantoms,
+          making PostgreSQL stricter than the standard requires.
+        </span>
+      </div>
     </div>
   );
 }

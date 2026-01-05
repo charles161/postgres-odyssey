@@ -207,6 +207,7 @@ export function CostArena() {
             step="0.1"
             value={Math.log10(estimatedSelectivity)}
             onChange={(e) => setEstimatedSelectivity(Math.pow(10, parseFloat(e.target.value)))}
+            aria-label="Planner's estimated selectivity percentage"
             className="w-full h-2 rounded-lg appearance-none cursor-pointer"
             style={{ background: colors.ocean }}
           />
@@ -222,6 +223,7 @@ export function CostArena() {
             step="0.1"
             value={Math.log10(actualSelectivity)}
             onChange={(e) => setActualSelectivity(Math.pow(10, parseFloat(e.target.value)))}
+            aria-label="Actual reality selectivity percentage"
             className="w-full h-2 rounded-lg appearance-none cursor-pointer"
             style={{ background: colors.ocean }}
           />

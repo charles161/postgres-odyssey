@@ -128,19 +128,25 @@ export function ChapterCardInline({
   const words = message.split(' ');
 
   return (
-    <div className="py-24 text-center">
-      <p className="text-2xl md:text-4xl font-light leading-tight">
+    <motion.div
+      className="py-24 text-center"
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: true, margin: '-100px' }}
+      transition={{ duration: 0.6 }}
+    >
+      <p className="text-2xl md:text-4xl font-light leading-tight max-w-3xl mx-auto px-8">
         {words.map((word, i) => (
           <motion.span
             key={i}
             className="inline-block mr-[0.3em]"
             style={{ color: accentColor }}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 30, rotateX: -20 }}
+            whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
             viewport={{ once: true }}
             transition={{
               delay: i * 0.08,
-              duration: 0.5,
+              duration: 0.6,
               ease: [0.16, 1, 0.3, 1],
             }}
           >
@@ -148,6 +154,16 @@ export function ChapterCardInline({
           </motion.span>
         ))}
       </p>
-    </div>
+
+      {/* Decorative line */}
+      <motion.div
+        className="mx-auto mt-8 h-px"
+        style={{ background: `${accentColor}40` }}
+        initial={{ width: 0 }}
+        whileInView={{ width: 120 }}
+        viewport={{ once: true }}
+        transition={{ delay: words.length * 0.08 + 0.3, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      />
+    </motion.div>
   );
 }

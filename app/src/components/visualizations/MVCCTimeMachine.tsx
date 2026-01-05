@@ -180,6 +180,7 @@ export function MVCCTimeMachine() {
             type="checkbox"
             checked={showAllVersions}
             onChange={(e) => setShowAllVersions(e.target.checked)}
+            aria-label="Show all tuple versions regardless of visibility"
             className="rounded"
           />
           <span className="text-sm" style={{ color: colors.text.muted }}>
@@ -574,6 +575,21 @@ export function MVCCTimeMachine() {
         "truths." Transaction 120 sees $1,000. Transaction 180 sees $1,500. Both
         are correct—for their point in time. This is how PostgreSQL achieves{' '}
         <strong>readers never block writers</strong>.
+      </div>
+
+      {/* Technical note */}
+      <div
+        className="p-3 rounded-lg text-xs"
+        style={{
+          background: colors.oceanDark,
+          border: `1px solid ${colors.text.muted}20`,
+          color: colors.text.muted,
+        }}
+      >
+        <strong>Note:</strong> This visualization shows the core xmin/xmax visibility logic.
+        In reality, PostgreSQL also checks whether transactions have actually{' '}
+        <strong>committed</strong> by consulting pg_xact (the commit log). An uncommitted
+        transaction's changes are invisible to others—even if xmin/xmax rules would show them.
       </div>
     </div>
   );

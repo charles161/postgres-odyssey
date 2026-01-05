@@ -1,16 +1,21 @@
 import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Scene } from '../../components/storytelling/Scene';
 import { OpeningReveal } from '../../components/storytelling/TextReveal';
+import { ScrollIndicator } from '../../components/storytelling/ScrollIndicator';
 import { InteractiveTuple } from '../../components/visualizations/InteractiveTuple';
+import { EpisodeNavigation } from '../../components/EpisodeNavigation';
 import { useLenis } from '../../hooks/useLenis';
+import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { colors } from '../../config/theme';
 
 export function Episode01Genesis() {
-  const navigate = useNavigate();
   const [showOpening, setShowOpening] = useState(true);
   useLenis();
+  useDocumentMeta({
+    title: 'Episode 1: Genesis',
+    description: 'How PostgreSQL stores data at the byte level - tuples, pages, and heaps.',
+  });
 
   const handleOpeningComplete = useCallback(() => {
     // Wait a moment before transitioning to scroll content
@@ -68,30 +73,7 @@ export function Episode01Genesis() {
                     <span className="glow-text">living custodians</span> of human memory.
                   </motion.p>
 
-                  <motion.div
-                    className="mt-16"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 2 }}
-                  >
-                    <p
-                      className="text-sm uppercase tracking-widest"
-                      style={{ color: colors.text.muted }}
-                    >
-                      Scroll to continue
-                    </p>
-                    <motion.div
-                      className="mt-4 w-6 h-10 border-2 rounded-full mx-auto relative"
-                      style={{ borderColor: colors.glow.healthy + '40' }}
-                    >
-                      <motion.div
-                        className="w-1.5 h-1.5 rounded-full absolute left-1/2 -translate-x-1/2"
-                        style={{ background: colors.glow.healthy }}
-                        animate={{ y: [8, 20, 8] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                      />
-                    </motion.div>
-                  </motion.div>
+                  <ScrollIndicator />
                 </div>
               </div>
             </Scene>
@@ -293,41 +275,7 @@ export function Episode01Genesis() {
                     But this is just the beginning of the organism.
                   </motion.p>
 
-                  <motion.button
-                    className="px-8 py-4 rounded-lg text-lg font-medium transition-all"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.4 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/')}
-                    style={{
-                      background: `${colors.glow.healthy}20`,
-                      color: colors.glow.healthy,
-                      border: `1px solid ${colors.glow.healthy}40`,
-                    }}
-                  >
-                    Return to the Organism
-                  </motion.button>
-
-                  <motion.button
-                    className="mt-8 px-6 py-3 rounded-lg text-sm font-medium transition-all"
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.6 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/episode/2')}
-                    style={{
-                      background: `${colors.glow.critical}15`,
-                      color: colors.glow.critical,
-                      border: `1px solid ${colors.glow.critical}40`,
-                    }}
-                  >
-                    Next: Episode 2 — The First Heartbeat →
-                  </motion.button>
+                  <EpisodeNavigation currentEpisode={1} />
                 </div>
               </div>
             </Scene>
