@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { ScrollContainer } from './components/layout/ScrollContainer';
 import { CursorGlow } from './components/layout/CursorGlow';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -24,6 +25,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <Analytics />
         <ScrollContainer>
           <CursorGlow />
           <Routes>

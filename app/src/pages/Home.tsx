@@ -538,6 +538,13 @@ export function Home() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 1 }}
         >
+          <p
+            className="text-xs mb-4 max-w-md mx-auto leading-relaxed"
+            style={{ color: '#6a6a7a' }}
+          >
+            Learn critically. PostgreSQL evolves, edge cases exist, and your mileage may vary.
+            Verify concepts against official documentation before production use.
+          </p>
           <p className="text-sm" style={{ color: colors.text.muted }}>
             A{' '}
             <a
