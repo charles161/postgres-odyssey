@@ -231,19 +231,6 @@ export function Episode05ManyLives() {
               >
                 Same row. Same moment. Different truths.
               </motion.p>
-
-              {/* Skip button */}
-              <motion.button
-                className="absolute bottom-8 left-1/2 -translate-x-1/2 text-sm"
-                style={{ color: colors.text.muted }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.5 }}
-                transition={{ delay: 2 }}
-                whileHover={{ opacity: 1 }}
-                onClick={() => setShowOpening(false)}
-              >
-                Skip intro
-              </motion.button>
             </div>
           </motion.div>
         )}

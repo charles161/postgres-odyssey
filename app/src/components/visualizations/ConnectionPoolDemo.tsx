@@ -64,83 +64,79 @@ export function ConnectionPoolDemo() {
     setClients(newClients);
     setMetrics({ completed: 0, avgWait: 0, totalTime: 0 });
 
-    // Start simulation loop
+    // Start simulation loop - use refs to avoid nested state update issues
+    let localClients = [...newClients];
+    let localConnections = [...connections];
+
     intervalRef.current = setInterval(() => {
-      setConnections(prevConns => {
-        const updatedConns = [...prevConns];
+      let stateChanged = false;
+      const completedClientIds: number[] = [];
 
-        // Process active connections (decrement query time)
-        updatedConns.forEach(conn => {
-          if (conn.state === 'active' && conn.queryTime > 0) {
-            conn.queryTime -= 1;
-            if (conn.queryTime <= 0) {
-              // Query complete
-              conn.state = 'idle';
-
-              setClients(prevClients => {
-                const updated = [...prevClients];
-                const clientIdx = updated.findIndex(c => c.id === conn.clientId);
-                if (clientIdx >= 0) {
-                  updated[clientIdx].state = 'completed';
-                  waitTimesRef.current.push(Date.now() - startTimeRef.current);
-
-                  const completedCount = updated.filter(c => c.state === 'completed').length;
-                  setMetrics({
-                    completed: completedCount,
-                    avgWait: waitTimesRef.current.length > 0
-                      ? Math.round(waitTimesRef.current.reduce((a, b) => a + b, 0) / waitTimesRef.current.length)
-                      : 0,
-                    totalTime: Date.now() - startTimeRef.current,
-                  });
-                }
-                return updated;
-              });
-
-              conn.clientId = null;
+      // Step 1: Process active connections (decrement query time)
+      localConnections.forEach(conn => {
+        if (conn.state === 'active' && conn.queryTime > 0) {
+          conn.queryTime -= 1;
+          stateChanged = true;
+          if (conn.queryTime <= 0) {
+            // Query complete
+            conn.state = 'idle';
+            if (conn.clientId !== null) {
+              completedClientIds.push(conn.clientId);
             }
+            conn.clientId = null;
           }
-        });
-
-        return updatedConns;
-      });
-
-      // Assign waiting clients to idle connections
-      setClients(prevClients => {
-        const updated = [...prevClients];
-
-        setConnections(prevConns => {
-          const updatedConns = [...prevConns];
-
-          updated.forEach(client => {
-            if (client.state === 'waiting') {
-              const idleConn = updatedConns.find(c => c.state === 'idle');
-              if (idleConn) {
-                idleConn.state = 'active';
-                idleConn.clientId = client.id;
-                idleConn.queryTime = 3 + Math.floor(Math.random() * 5); // 3-7 ticks
-                client.state = 'connected';
-                client.assignedConnection = idleConn.id;
-              }
-            }
-          });
-
-          return updatedConns;
-        });
-
-        return updated;
-      });
-
-      // Check if simulation complete
-      setClients(prevClients => {
-        if (prevClients.every(c => c.state === 'completed')) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          setIsRunning(false);
         }
-        return prevClients;
       });
+
+      // Step 2: Mark completed clients
+      completedClientIds.forEach(clientId => {
+        const client = localClients.find(c => c.id === clientId);
+        if (client) {
+          client.state = 'completed';
+          client.assignedConnection = null;
+          waitTimesRef.current.push(Date.now() - startTimeRef.current);
+          stateChanged = true;
+        }
+      });
+
+      // Step 3: Assign waiting clients to idle connections
+      localClients.forEach(client => {
+        if (client.state === 'waiting') {
+          const idleConn = localConnections.find(c => c.state === 'idle');
+          if (idleConn) {
+            idleConn.state = 'active';
+            idleConn.clientId = client.id;
+            idleConn.queryTime = 3 + Math.floor(Math.random() * 5); // 3-7 ticks
+            client.state = 'connected';
+            client.assignedConnection = idleConn.id;
+            stateChanged = true;
+          }
+        }
+      });
+
+      // Step 4: Update React state
+      if (stateChanged) {
+        setConnections([...localConnections]);
+        setClients([...localClients]);
+
+        const completedCount = localClients.filter(c => c.state === 'completed').length;
+        setMetrics({
+          completed: completedCount,
+          avgWait: waitTimesRef.current.length > 0
+            ? Math.round(waitTimesRef.current.reduce((a, b) => a + b, 0) / waitTimesRef.current.length)
+            : 0,
+          totalTime: Date.now() - startTimeRef.current,
+        });
+      }
+
+      // Step 5: Check if simulation complete
+      if (localClients.every(c => c.state === 'completed')) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setIsRunning(false);
+      }
     }, 200);
   };
 

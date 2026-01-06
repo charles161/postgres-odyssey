@@ -180,7 +180,7 @@ export function VacuumProcess() {
       <div className="flex flex-col md:flex-row gap-6">
         {/* Page visualization */}
         <div
-          className="relative rounded-xl p-4 flex-1"
+          className="relative rounded-xl p-4 flex-1 overflow-hidden"
           style={{ background: colors.oceanDark, border: `1px solid ${colors.text.muted}30`, minHeight: 200 }}
         >
           <div className="absolute top-2 left-2 text-xs font-mono" style={{ color: colors.text.muted }}>

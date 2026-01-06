@@ -95,15 +95,8 @@ interface OpeningRevealProps {
 
 export function OpeningReveal({ onComplete }: OpeningRevealProps) {
   const [phase, setPhase] = useState(0);
-  const [showSkip, setShowSkip] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
-
-  // Show skip button after 1 second
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSkip(true), 1000);
-    return () => clearTimeout(timer);
-  }, []);
 
   // If user prefers reduced motion, skip the intro entirely
   useEffect(() => {
@@ -203,30 +196,6 @@ export function OpeningReveal({ onComplete }: OpeningRevealProps) {
           8,192 bytes of possibility
         </motion.p>
       </div>
-
-      {/* Skip button */}
-      <AnimatePresence>
-        {showSkip && (
-          <motion.button
-            className="fixed bottom-8 right-8 px-4 py-2 text-sm font-mono rounded-full transition-colors"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onComplete}
-            style={{
-              color: colors.text.muted,
-              background: colors.oceanLight,
-              border: `1px solid ${colors.text.muted}40`,
-            }}
-            whileHover={{
-              color: colors.text.secondary,
-              borderColor: colors.text.secondary,
-            }}
-          >
-            Skip intro →
-          </motion.button>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

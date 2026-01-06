@@ -230,37 +230,46 @@ function VariantCard({ variant, isExpanded, onToggle }: {
       layout
     >
       {/* Header */}
-      <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{
-              background:
-                variant.lockSeverity === 'critical'
-                  ? colors.glow.critical
-                  : variant.lockSeverity === 'warning'
-                  ? colors.glow.warning
-                  : colors.glow.healthy,
-            }}
-          />
-          <h3 className="font-mono font-bold" style={{ color: colors.text.primary }}>
-            {variant.name}
-          </h3>
-          {variant.isExtension && (
-            <span
-              className="px-2 py-0.5 rounded text-xs"
-              style={{ background: '#a78bfa30', color: '#a78bfa' }}
-            >
-              Extension
-            </span>
-          )}
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{
+                background:
+                  variant.lockSeverity === 'critical'
+                    ? colors.glow.critical
+                    : variant.lockSeverity === 'warning'
+                    ? colors.glow.warning
+                    : colors.glow.healthy,
+              }}
+            />
+            <h3 className="font-mono font-bold" style={{ color: colors.text.primary }}>
+              {variant.name}
+            </h3>
+            {variant.isExtension && (
+              <span
+                className="px-2 py-0.5 rounded text-xs"
+                style={{ background: '#a78bfa30', color: '#a78bfa' }}
+              >
+                Extension
+              </span>
+            )}
+          </div>
+          <motion.span
+            style={{ color: colors.text.muted }}
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+          >
+            ▼
+          </motion.span>
         </div>
-        <motion.span
-          style={{ color: colors.text.muted }}
-          animate={{ rotate: isExpanded ? 180 : 0 }}
-        >
-          ▼
-        </motion.span>
+
+        {/* Collapsed preview */}
+        {!isExpanded && (
+          <p className="text-sm mt-2 line-clamp-1" style={{ color: colors.text.muted }}>
+            {variant.description}
+          </p>
+        )}
       </div>
 
       {/* Expanded content */}
@@ -344,7 +353,7 @@ export function VacuumSpectrum() {
   const [expandedId, setExpandedId] = useState<string | null>('vacuum');
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
       {VARIANTS.map((variant) => (
         <VariantCard
           key={variant.id}

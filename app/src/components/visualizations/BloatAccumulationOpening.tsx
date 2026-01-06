@@ -27,7 +27,6 @@ export function BloatAccumulationOpening({ onComplete }: BloatAccumulationOpenin
   const [phase, setPhase] = useState<Phase>('idle');
   const [ghosts, setGhosts] = useState<GhostTuple[]>([]);
   const [tableWidth, setTableWidth] = useState(200);
-  const [showSkip, setShowSkip] = useState(false);
 
   // Generate ghost tuples
   const addGhost = () => {
@@ -43,7 +42,6 @@ export function BloatAccumulationOpening({ onComplete }: BloatAccumulationOpenin
   // Timeline
   useEffect(() => {
     const timeline = [
-      { delay: 500, action: () => setShowSkip(true) },
       { delay: 1000, action: () => setPhase('first-ghost') },
       { delay: 1500, action: () => { addGhost(); setTableWidth(210); } },
       { delay: 2000, action: () => setPhase('acceleration') },
@@ -66,11 +64,6 @@ export function BloatAccumulationOpening({ onComplete }: BloatAccumulationOpenin
     return () => timers.forEach(clearTimeout);
   }, [onComplete]);
 
-  const handleSkip = () => {
-    setPhase('done');
-    onComplete();
-  };
-
   if (phase === 'done') return null;
 
   return (
@@ -82,28 +75,6 @@ export function BloatAccumulationOpening({ onComplete }: BloatAccumulationOpenin
       exit={{ opacity: 0 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Skip button */}
-      <AnimatePresence>
-        {showSkip && phase !== 'title' && (
-          <motion.button
-            className="absolute top-8 right-8 px-4 py-2 text-sm rounded-lg z-50"
-            style={{
-              background: colors.oceanLight,
-              color: colors.text.muted,
-              border: `1px solid ${colors.text.muted}30`,
-            }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleSkip}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Skip intro
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Main visualization area */}
       <div className="relative w-full h-full flex items-center justify-center">
         {/* The Table - breathing rectangle */}

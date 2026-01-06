@@ -51,19 +51,6 @@ export function MicroDisasterOpening({ onComplete }: MicroDisasterOpeningProps) 
       animate={{ opacity: phase === 'done' ? 0 : 1 }}
       transition={{ duration: 0.8 }}
     >
-      {/* Skip button */}
-      <motion.button
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 text-sm z-50"
-        style={{ color: colors.text.muted }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.5 }}
-        transition={{ delay: 1 }}
-        whileHover={{ opacity: 1 }}
-        onClick={onComplete}
-      >
-        Skip intro
-      </motion.button>
-
       {/* Scene container */}
       <div className="relative w-full max-w-lg h-64">
         {/* Central account */}
